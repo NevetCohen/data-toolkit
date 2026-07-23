@@ -1,0 +1,17 @@
+{
+  "mode": "static-value",
+  "arguments": [
+    {
+      "source_column": "id",
+      "static_value": "A"
+    },
+    {
+      "source_column": "name",
+      "static_value": "same"
+    }
+  ],
+  "formula": "1*2",
+  "expected_source_row_ids": [
+    "  A  "],
+  "evidence": "The legacy tool trims source and static values before equality and emits the source row in static-value mode."
+}

@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://data-toolkit.local/schema/workflow-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "sources", "operations", "interface", "exception"],
+  "properties": {
+    "schema_version": {"const": "v1"},
+    "id": {"type": "string", "minLength": 1},
+    "sources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+    "mappings": {"type": "array", "items": {"$ref": "#/$defs/mapping"}},
+    "operations": {"type": "array", "items": {"$ref": "#/$defs/operation"}},
+    "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}},
+    "queries": {"type": "array", "items": {"$ref": "#/$defs/query"}},
+    "overrides": {"$ref": "#/$defs/workflowOverrides"},
+    "interface": {"$ref": "#/$defs/interface"},
+    "exception": {"$ref": "#/$defs/exceptionPolicy"},
+    "validations": {"type": "array", "items": {"$ref": "#/$defs/validation"}}
+  },
+  "$defs": {
+    "format": {"enum": ["json", "csv", "excel", "txt", "google_sheets"]},
+    "columnRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "position": {"type": "string", "minLength": 1},
+        "header": {"type": "string", "minLength": 1},
+        "alias": {"type": "string", "minLength": 1}
+      }
+    },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "index": {"type": "integer", "minimum": 0}
+      },
+      "oneOf": [{"required": ["name"]}, {"required": ["index"]}]
+    },
+    "sourceOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {"type": "string", "minLength": 1},
+        "delimiter": {"type": "string", "minLength": 1},
+        "displayed_values": {"type": "boolean"},
+        "json_root": {"type": "string", "pattern": "^(/([^/~]|~[01])*)*$"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "format", "location"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "format": {"$ref": "#/$defs/format"},
+        "location": {"type": "string", "minLength": 1},
+        "sheets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/sheet"}},
+        "options": {"$ref": "#/$defs/sourceOptions"}
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "column"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "sheet": {"type": "string"},
+        "column": {"$ref": "#/$defs/columnRef"},
+        "alias": {"type": "string"},
+        "json_path": {"type": "string"},
+        "type": {"type": "string"}
+      }
+    },
+    "literal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["null", "string", "boolean", "integer", "decimal", "date", "time"]},
+        "value": {"type": "string"}
+      }
+    },
+    "operand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "column": {"$ref": "#/$defs/columnRef"},
+        "literal": {"$ref": "#/$defs/literal"}
+      },
+      "oneOf": [{"required": ["column"]}, {"required": ["literal"]}]
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["left", "operator", "right"],
+      "properties": {
+        "left": {"$ref": "#/$defs/operand"},
+        "operator": {"enum": ["eq", "ne", "lt", "lte", "gt", "gte", "contains", "matches"]},
+        "right": {"$ref": "#/$defs/operand"}
+      }
+    },
+    "expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operator"],
+      "properties": {
+        "operator": {"enum": ["compare", "and", "or", "xor", "not"]},
+        "comparison": {"$ref": "#/$defs/comparison"},
+        "arguments": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/expression"}},
+        "argument": {"$ref": "#/$defs/expression"},
+        "not_scope": {"enum": ["source_1", "source_2", "both"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"operator": {"const": "compare"}}},
+          "then": {"required": ["comparison"], "not": {"anyOf": [{"required": ["arguments"]}, {"required": ["argument"]}]}}
+        },
+        {
+          "if": {"properties": {"operator": {"enum": ["and", "or", "xor"]}}},
+          "then": {"required": ["arguments"], "not": {"anyOf": [{"required": ["comparison"]}, {"required": ["argument"]}]}}
+        },
+        {
+          "if": {"properties": {"operator": {"const": "not"}}},
+          "then": {"required": ["argument"], "not": {"anyOf": [{"required": ["comparison"]}, {"required": ["arguments"]}]}}
+        }
+      ]
+    },
+    "rename": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "to"],
+      "properties": {
+        "column": {"$ref": "#/$defs/columnRef"},
+        "to": {"type": "string", "minLength": 1}
+      }
+    },
+    "normalize": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["semantic_type"],
+      "properties": {
+        "semantic_type": {"type": "string", "minLength": 1},
+        "format": {"type": "string"}
+      }
+    },
+    "deduplicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "keys": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/columnRef"}},
+        "keep": {"enum": ["first", "last", "error"]}
+      }
+    },
+    "sortField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column"],
+      "properties": {
+        "column": {"$ref": "#/$defs/columnRef"},
+        "direction": {"enum": ["asc", "desc"]}
+      }
+    },
+    "splitBranch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "condition": {"$ref": "#/$defs/expression"}
+      }
+    },
+    "split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branches"],
+      "properties": {
+        "branches": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/splitBranch"}}
+      }
+    },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target"],
+      "properties": {
+        "target": {"$ref": "#/$defs/columnRef"},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/columnRef"}},
+        "separator": {"type": "string"},
+        "transform": {"type": "string"}
+      }
+    },
+    "regex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "pattern"],
+      "properties": {
+        "column": {"$ref": "#/$defs/columnRef"},
+        "pattern": {"type": "string", "minLength": 1},
+        "replacement": {"type": "string"}
+      }
+    },
+    "operationOverrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"mixed_type_action": {"enum": ["block", "report", "ignore"]}}
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["filter", "rename", "normalize", "trim", "deduplicate", "delete_empty_rows", "delete_rows", "sort", "split", "concatenate", "transform_text", "regex_transform"]},
+        "inputs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "condition": {"$ref": "#/$defs/expression"},
+        "rename": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/rename"}},
+        "columns": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/columnRef"}},
+        "normalize": {"$ref": "#/$defs/normalize"},
+        "deduplicate": {"$ref": "#/$defs/deduplicate"},
+        "sort": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/sortField"}},
+        "split": {"$ref": "#/$defs/split"},
+        "text": {"$ref": "#/$defs/text"},
+        "regex": {"$ref": "#/$defs/regex"},
+        "overrides": {"$ref": "#/$defs/operationOverrides"}
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "output_as"],
+      "properties": {
+        "column": {"$ref": "#/$defs/columnRef"},
+        "output_as": {"type": "string", "minLength": 1}
+      }
+    },
+    "branchProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_1", "source_2"],
+      "properties": {
+        "source_1": {"type": "array", "items": {"$ref": "#/$defs/projection"}},
+        "source_2": {"type": "array", "items": {"$ref": "#/$defs/projection"}}
+      }
+    },
+    "locationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {"type": "string", "minLength": 1},
+        "filename_template": {"type": "string", "minLength": 1}
+      },
+      "anyOf": [{"required": ["directory"]}, {"required": ["filename_template"]}]
+    },
+    "outputOverrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filename": {"type": "string", "minLength": 1},
+        "directory": {"type": "string", "minLength": 1},
+        "format": {"$ref": "#/$defs/format"},
+        "style": {"type": "string", "minLength": 1},
+        "delimiter": {"type": "string", "minLength": 1},
+        "collision": {"enum": ["block", "overwrite", "alternate_name"]}
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"enum": ["file_exists", "row_count", "required_fields", "unique", "non_empty"]},
+        "target": {"type": "string"},
+        "columns": {"type": "array", "items": {"$ref": "#/$defs/columnRef"}},
+        "expected": {"type": "string"}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "input", "format", "projection"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "input": {"type": "string", "minLength": 1},
+        "format": {"$ref": "#/$defs/format"},
+        "location": {"type": "string", "minLength": 1},
+        "location_policy": {"$ref": "#/$defs/locationPolicy"},
+        "projection": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/projection"}},
+        "branch_projection": {"$ref": "#/$defs/branchProjection"},
+        "style": {"type": "string"},
+        "validations": {"type": "array", "items": {"$ref": "#/$defs/validation"}},
+        "overrides": {"$ref": "#/$defs/outputOverrides"}
+      },
+      "oneOf": [{"required": ["location"]}, {"required": ["location_policy"]}]
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "input", "kind", "shape"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "input": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["rows", "count", "distinct_values"]},
+        "projection": {"type": "array", "items": {"$ref": "#/$defs/projection"}},
+        "shape": {"enum": ["rows", "scalar", "values"]}
+      }
+    },
+    "workflowOverrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "null_display": {"type": "string"},
+        "decimal_precision": {"type": "integer", "minimum": 0},
+        "date_format": {"type": "string", "minLength": 1},
+        "time_format": {"type": "string", "minLength": 1},
+        "phone_format": {"type": "string", "minLength": 1},
+        "text_encoding": {"type": "string", "minLength": 1},
+        "output_directory": {"type": "string", "minLength": 1},
+        "filename_template": {"type": "string", "minLength": 1},
+        "table_style": {"type": "string", "minLength": 1},
+        "txt_delimiter": {"type": "string", "minLength": 1},
+        "mixed_type_action": {"enum": ["block", "report", "ignore"]},
+        "deduplicate_keep": {"enum": ["first", "last", "error"]},
+        "exception_detail": {"type": "string", "minLength": 1},
+        "auto_normalize_formats": {"type": "boolean"},
+        "trim_detected_whitespace": {"type": "boolean"},
+        "not_scope": {"enum": ["source_1", "source_2", "both"]},
+        "collision": {"enum": ["block", "overwrite", "alternate_name"]},
+        "maximum_memory_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "approval_before_run"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "approval_before_run": {"type": "boolean"}
+      }
+    },
+    "exceptionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action"],
+      "properties": {
+        "action": {"enum": ["block", "report", "ignore"]},
+        "detail": {"type": "string"}
+      }
+    }
+  }
+}

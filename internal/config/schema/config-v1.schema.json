@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://data-toolkit.local/schema/config-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": {"const": "v1"},
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "null_display": {"type": "string"},
+        "decimal_precision": {"type": "integer", "minimum": 0},
+        "date_format": {"type": "string", "minLength": 1},
+        "time_format": {"type": "string", "minLength": 1},
+        "phone_format": {"type": "string", "minLength": 1},
+        "text_encoding": {"const": "UTF-8"}
+      }
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "semantic_type"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "semantic_type": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "styles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "header_fill": {"type": "string"},
+          "header_text": {"type": "string"},
+          "alternating_row_fill": {"type": "string"},
+          "bold_headers": {"type": "boolean"}
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {"type": "string", "minLength": 1},
+        "filename_template": {"type": "string", "minLength": 1},
+        "default_style": {"type": "string", "minLength": 1},
+        "txt_delimiter": {"type": "string", "minLength": 1},
+        "collision": {"enum": ["overwrite", "alternate_name", "block"]}
+      }
+    },
+    "cleaning": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mixed_type_action": {"enum": ["block", "report", "ignore"]},
+        "deduplicate_keep": {"enum": ["first", "last", "error"]},
+        "exception_detail": {"type": "string", "minLength": 1},
+        "auto_normalize_formats": {"type": "boolean"},
+        "trim_detected_whitespace": {"type": "boolean"},
+        "not_scope": {"enum": ["source_1", "source_2", "both"]}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maximum_memory_bytes": {"type": "integer", "minimum": 1},
+        "lock_retry_count": {"type": "integer", "minimum": 0},
+        "lock_retry_interval": {"type": "string", "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$"},
+        "lock_timeout": {"type": "string", "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$"},
+        "temporary_workspace": {"type": "string", "minLength": 1},
+        "failed_run_retention": {"type": "string", "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$"},
+        "recent_workflows": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

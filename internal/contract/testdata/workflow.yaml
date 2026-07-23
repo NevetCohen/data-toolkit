@@ -1,0 +1,39 @@
+schema_version: v1
+id: city-filter
+sources:
+  - id: members
+    format: csv
+    location: fixtures/members.csv
+operations:
+  - id: filter-city
+    kind: filter
+    inputs: [members]
+    condition:
+      operator: compare
+      comparison:
+        left:
+          source_id: members
+          column:
+            header: ישוב
+        operator: eq
+        right:
+          literal:
+            kind: string
+            value: בת ים
+outputs:
+  - id: filtered-members
+    input: filter-city
+    format: csv
+    location: generated/bat-yam.csv
+    projection:
+      - column:
+          header: שם מלא
+        output_as: שם מלא
+      - column:
+          header: ישוב
+        output_as: ישוב
+interface:
+  name: cli
+  approval_before_run: false
+exception:
+  action: block

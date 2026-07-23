@@ -1,0 +1,10 @@
+﻿{"outer":{"Data":[
+  {"EntityID":" 00123 ","Segment":"keep","FirstName":" דנה🙂 ","LastName":" לוי ","PnimStreet":" הרצל ","PnimCity":" תל אביב ","PnimHouseNum":" 12 ","Email":" dana@example.test "},
+  {"EntityID":"00123","Segment":"keep"},{"EntityID":"12.0","Segment":"keep"},{"EntityID":"BAD","Segment":"skip"},7,{"entityID":"999","Segment":"keep"},
+  {"EntityID":42,"Segment":"keep","FirstName":true,"LastName":["x"],"PnimStreet":"Same","PnimCity":"Same","PnimHouseNum":2}
+]}}
+{"Data":[
+  {"EntityID":"0007","Segment":"keep","PnimStreet":"Alpha","PnimCity":"Beta","PnimHouseNum":"000","AddressHouseNum":"5","Email":"x@example.test"},
+  {"EntityID":"800","Segment":"keep","AddStreet":"Fallback","AddCity":"חיפה","AddressHouseNum":"7"},
+  {"EntityID":"801","Segment":"keep","PnimCity":"City","PnimHouseNum":"3"},{"EntityID":"802","Segment":"keep","PnimCity":"Only"},{"EntityID":"803","Segment":"keep"},{"EntityID":"804","Segment":"skip"}
+]}

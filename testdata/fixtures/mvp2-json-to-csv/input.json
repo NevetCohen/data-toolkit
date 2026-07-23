@@ -1,0 +1,7 @@
+{
+  "Data": [
+    {"FirstName": "נועה", "LastName": "לוי", "EntityID": 101, "TZ": 123456789, "PnimCity": "בת ים", "Email": "noa@example.invalid"},
+    {"FirstName": " דניאל ", "LastName": " כהן ", "EntityID": 102, "TZ": 987654321, "PnimCity": "חיפה", "Email": "daniel@example.invalid"},
+    {"FirstName": "🙂", "LastName": "", "EntityID": 9007199254740993, "TZ": 111111111, "PnimCity": "ירושלים", "Email": null}
+  ]
+}

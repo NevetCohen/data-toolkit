@@ -1,0 +1,8 @@
+{
+  "Data": [
+    {"name": "נועה 🧭", "id": 9007199254740993, "amount": 0.1000000000000000000000000001, "nested": {"city": "בת ים"}},
+    {"name": "דניאל", "id": 2, "amount": 1.25, "nested": {"city": "חיפה"}},
+    {"name": null, "id": 3, "nested": {}}
+  ],
+  "ignored": {"name": "not a row"}
+}

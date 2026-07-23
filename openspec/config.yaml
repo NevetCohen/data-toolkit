@@ -1,0 +1,17 @@
+schema: spec-driven
+
+context: |
+  Repository: C:\Users\nevet\data_toolkit
+  Project instructions, OpenSpec artifacts, Go implementation, tests, fixtures,
+  documentation, and repository-local skills share this repository.
+  Approved source datasets and the canonical Obsidian product brief are read-only.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours

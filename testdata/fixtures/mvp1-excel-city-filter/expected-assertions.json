@@ -1,0 +1,71 @@
+{
+  "workbook": "all_final.xlsx",
+  "sheet": "all_final",
+  "source_sha256": "F7D3861B458E548127ED8CCEA4C69B70CCDB5EEC0B464BC9F70F6D9B8E5C399C",
+  "fixture_sha256": "29C5AA4670CF0D15BCD0E408A29372B98B3A9C02F198FD99E45951D4983390A0",
+  "source_bytes": 7065978,
+  "headers": [
+    "תעודת זהות",
+    "שם פרטי ",
+    "שם משפחה",
+    "כתובת מייל",
+    "כתובת",
+    "ישוב",
+    "טלפון נייד"
+  ],
+  "city_header": "ישוב",
+  "city_column": 6,
+  "fixture_rows": 5,
+  "expected_match_rows": [
+    3,
+    4,
+    6
+  ],
+  "expected_values": [
+    [
+      "fixture-r1-c1",
+      "fixture-r1-c2",
+      "fixture-r1-c3",
+      "fixture-r1-c4",
+      "fixture-r1-c5",
+      "fixture-non-match",
+      "fixture-r1-c7"
+    ],
+    [
+      "fixture-r2-c1",
+      "fixture-r2-c2",
+      "fixture-r2-c3",
+      "fixture-r2-c4",
+      "fixture-r2-c5",
+      "בת ים",
+      "fixture-r2-c7"
+    ],
+    [
+      "fixture-r3-c1",
+      "fixture-r3-c2",
+      "fixture-r3-c3",
+      "fixture-r3-c4",
+      "fixture-r3-c5",
+      "בת ים",
+      "fixture-r3-c7"
+    ],
+    [
+      "fixture-r4-c1",
+      "fixture-r4-c2",
+      "fixture-r4-c3",
+      "fixture-r4-c4",
+      "fixture-r4-c5",
+      "fixture-non-match",
+      "fixture-r4-c7"
+    ],
+    [
+      "fixture-r5-c1",
+      "fixture-r5-c2",
+      "fixture-r5-c3",
+      "fixture-r5-c4",
+      "fixture-r5-c5",
+      "בת ים",
+      "fixture-r5-c7"
+    ]
+  ]
+}

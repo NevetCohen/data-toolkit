@@ -1,0 +1,5 @@
+/bin/
+/*.exe
+/.agents/
+/testdata/generated/*
+!/testdata/generated/README.md

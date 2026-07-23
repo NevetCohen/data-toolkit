@@ -1,0 +1,23 @@
+{
+  "schema_version": "v1",
+  "id": "incomplete",
+  "sources": [
+    {"id": "source", "format": "csv", "location": "input.csv"}
+  ],
+  "operations": [
+    {"id": "filter", "kind": "filter", "inputs": ["source"]}
+  ],
+  "outputs": [
+    {
+      "id": "output",
+      "input": "filter",
+      "format": "csv",
+      "location": "output.csv",
+      "projection": [
+        {"column": {"header": "A"}, "output_as": "A"}
+      ]
+    }
+  ],
+  "interface": {"name": "cli", "approval_before_run": false},
+  "exception": {"action": "block"}
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": "cross-source-comparison-fixture/v1",
+  "comparison_arguments": [
+    {
+      "id": "same_id",
+      "left": "source_1.id",
+      "right": "source_2.id"
+    },
+    {
+      "id": "same_email",
+      "left": "source_1.email",
+      "right": "source_2.email"
+    }
+  ],
+  "source_1": [
+    { "row_id": "s1-alpha", "id": "100", "email": "alpha@example.test" },
+    { "row_id": "s1-beta", "id": "200", "email": "beta@example.test" },
+    { "row_id": "s1-both", "id": "300", "email": "both@example.test" },
+    { "row_id": "s1-unmatched", "id": "400", "email": "left-only@example.test" }
+  ],
+  "source_2": [
+    { "row_id": "s2-id", "id": "100", "email": "id-only@example.test" },
+    { "row_id": "s2-email", "id": "999", "email": "beta@example.test" },
+    { "row_id": "s2-both", "id": "300", "email": "both@example.test" },
+    { "row_id": "s2-unmatched", "id": "800", "email": "right-only@example.test" }
+  ],
+  "expected_positive_pair_sets": {
+    "AND": [["s1-both", "s2-both"]],
+    "OR": [["s1-alpha", "s2-id"], ["s1-beta", "s2-email"], ["s1-both", "s2-both"]],
+    "XOR": [["s1-alpha", "s2-id"], ["s1-beta", "s2-email"]]
+  },
+  "expected_not_of_or": {
+    "source_1": ["s1-unmatched"],
+    "source_2": ["s2-unmatched"],
+    "both": [
+      { "source_id": "source_1", "row_id": "s1-unmatched" },
+      { "source_id": "source_2", "row_id": "s2-unmatched" }
+    ]
+  },
+  "required_assertions": [
+    "Swapping source declarations and remapping field references preserves every positive pair set.",
+    "NOT scope is evaluated over the declared source universe, not over positional row pairs.",
+    "The both-scope result preserves source_id and stable per-source row identity.",
+    "Whitespace and file-format normalization are pre-logical concerns and are not exercised by this semantic fixture."
+  ]
+}

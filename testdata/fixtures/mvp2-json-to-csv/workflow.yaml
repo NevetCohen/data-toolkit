@@ -1,0 +1,65 @@
+schema_version: v1
+id: mvp2-json-to-csv
+sources:
+  - id: members
+    format: json
+    location: input.json
+    options:
+      json_root: /Data
+mappings:
+  - source_id: members
+    column: {header: FirstName}
+    json_path: /FirstName
+  - source_id: members
+    column: {header: LastName}
+    json_path: /LastName
+  - source_id: members
+    column: {header: EntityID}
+    json_path: /EntityID
+  - source_id: members
+    column: {header: TZ}
+    json_path: /TZ
+  - source_id: members
+    column: {header: PnimCity}
+    json_path: /PnimCity
+  - source_id: members
+    column: {header: Email}
+    json_path: /Email
+operations:
+  - id: full-name
+    kind: concatenate
+    inputs: [members]
+    text:
+      target: {header: full_name}
+      sources:
+        - {header: FirstName}
+        - {header: LastName}
+      separator: " "
+      transform: trim
+outputs:
+  - id: csv
+    input: full-name
+    format: csv
+    location: generated/mvp2.csv
+    projection:
+      - column: {header: FirstName}
+        output_as: שם פרטי
+      - column: {header: full_name}
+        output_as: שם מלא
+      - column: {header: EntityID}
+        output_as: entityID
+      - column: {header: TZ}
+        output_as: TZ
+      - column: {header: PnimCity}
+        output_as: ישוב
+      - column: {header: Email}
+        output_as: מייל
+    validations:
+      - id: rows
+        kind: row_count
+        expected: "3"
+interface:
+  name: acceptance
+  approval_before_run: false
+exception:
+  action: block

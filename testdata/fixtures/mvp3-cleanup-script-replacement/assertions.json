@@ -1,0 +1,12 @@
+{
+  "normal": {
+    "filter": ["Segment", "keep"],
+    "counters": {"JsonDocuments":"2","RawRecords":"13","DuplicateJsonEntityIds":"1","MissingOrInvalidEntityIds":"3","FilteredOutRecords":"2","ExistingEntityIdsBeforeRun":"2","InvalidEntityIdLinesRemoved":"2","CsvLastIndexBeforeRun":"2","RowsAppended":"7","EntityIdsAfterRun":"7","IdsOnly":"False","FilterField":"Segment","FilterValue":"keep"},
+    "headers": [" # "," entity_id ","שם פרטי","שם משפחה","כתובת","Email","unknown","מס' טלפון","מס' טלפון נייד"],
+    "rows": [["old","900","Old","Member","Old street","old@example.test","kept","", ""],["old2","901","Older","Member","Older street","older@example.test","kept","", ""],["3","00123","דנה🙂","לוי","הרצל 12, תל אביב","dana@example.test","", "", ""],["4","42","True","['x']","Same 2","", "", "", ""],["5","0007","", "","Alpha, Beta","x@example.test","", "", ""],["6","800","", "","Fallback 7, חיפה","", "", "", ""],["7","801","", "","3, City","", "", "", ""],["8","802","", "","Only","", "", "", ""],["9","803","", "","", "", "", "", ""]],
+    "id_lines": ["00123,","42,","0007,","800,","801,","802,","803,"]
+  },
+  "zero_accepted": {"filter":["Segment","keep"],"counters":{"JsonDocuments":"1","RawRecords":"2","DuplicateJsonEntityIds":"0","MissingOrInvalidEntityIds":"1","FilteredOutRecords":"1","ExistingEntityIdsBeforeRun":"0","InvalidEntityIdLinesRemoved":"0","CsvLastIndexBeforeRun":"0","RowsAppended":"0","EntityIdsAfterRun":"0","IdsOnly":"False","FilterField":"Segment","FilterValue":"keep"},"headers":["#","entityID","שם פרטי","שם משפחה","כתובת","מס' טלפון","מס' טלפון נייד","מייל"],"rows":[],"id_lines":[]},
+  "max_index": {"counters":{"JsonDocuments":"1","RawRecords":"1","DuplicateJsonEntityIds":"0","MissingOrInvalidEntityIds":"0","FilteredOutRecords":"0","ExistingEntityIdsBeforeRun":"0","InvalidEntityIdLinesRemoved":"0","CsvLastIndexBeforeRun":"9","RowsAppended":"1","EntityIdsAfterRun":"1","IdsOnly":"False","FilterField":"","FilterValue":""},"headers":["#","entityID"],"rows":[["2","old"],["9","older"],["10","10"]],"id_lines":["10,"]},
+  "errors":{"empty-data.json":"No top-level Data arrays found","missing-data.json":"No top-level Data arrays found","truncated-data.json":"Unexpected end of file inside Data array #1"}
+}
