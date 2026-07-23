@@ -3,3 +3,5 @@
 /.agents/
 /testdata/generated/*
 !/testdata/generated/README.md
+/legacy/mvp/testdata/generated/*
+!/legacy/mvp/testdata/generated/README.md

@@ -2,155 +2,268 @@ package config
 
 import (
 	"bytes"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"data-toolkit/internal/contract"
+	"data-toolkit/configs"
 
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 	"gopkg.in/yaml.v3"
 )
 
-const configSchemaURL = "https://data-toolkit.local/schema/config-v1.json"
+const schemaURL = "https://data-toolkit.local/schema/config-v1.json"
 
-//go:embed schema/config-v1.schema.json
-var configSchemaFiles embed.FS
+type Format string
 
-var (
-	compileConfigSchemaOnce sync.Once
-	compiledConfigSchema    *jsonschema.Schema
-	compiledConfigSchemaErr error
+const (
+	FormatYAML Format = "yaml"
+	FormatJSON Format = "json"
 )
 
-func Decode(reader io.Reader, format contract.DocumentFormat) (Config, error) {
-	payload, err := io.ReadAll(reader)
-	if err != nil {
-		return Config{}, fmt.Errorf("read configuration: %w", err)
+type PathError struct {
+	Path    string
+	Message string
+}
+
+func (value PathError) Error() string {
+	return value.Path + ": " + value.Message
+}
+
+type ValidationErrors []PathError
+
+func (values ValidationErrors) Error() string {
+	parts := make([]string, len(values))
+	for index, value := range values {
+		parts[index] = value.Error()
 	}
-	document, err := configDocumentForSchema(payload, format)
+	return strings.Join(parts, "; ")
+}
+
+var (
+	compileOnce   sync.Once
+	compiled      *jsonschema.Schema
+	compiledError error
+)
+
+func LoadDefaults() (Document, error) {
+	payload, err := configs.Default()
 	if err != nil {
-		return Config{}, err
+		return Document{}, err
+	}
+	return Decode(payload, FormatYAML)
+}
+
+func Decode(payload []byte, format Format) (Document, error) {
+	documentForSchema, err := normalizeForSchema(payload, format)
+	if err != nil {
+		return Document{}, err
 	}
 	schema, err := configSchema()
 	if err != nil {
-		return Config{}, fmt.Errorf("compile configuration schema: %w", err)
+		return Document{}, fmt.Errorf("compile configuration schema: %w", err)
 	}
-	if err := schema.Validate(document); err != nil {
-		var validationError *jsonschema.ValidationError
-		if !errors.As(err, &validationError) {
-			return Config{}, fmt.Errorf("validate configuration schema: %w", err)
-		}
-		findings := make(contract.ValidationErrors, 0)
-		collectConfigSchemaErrors(validationError, &findings)
-		return Config{}, findings
+	if err := schema.Validate(documentForSchema); err != nil {
+		return Document{}, schemaErrors(err)
 	}
 
-	var configuration Config
+	var document Document
 	switch format {
-	case contract.DocumentJSON:
+	case FormatJSON:
 		decoder := json.NewDecoder(bytes.NewReader(payload))
 		decoder.DisallowUnknownFields()
-		err = decoder.Decode(&configuration)
-	case contract.DocumentYAML:
+		err = decoder.Decode(&document)
+	case FormatYAML:
 		decoder := yaml.NewDecoder(bytes.NewReader(payload))
 		decoder.KnownFields(true)
-		err = decoder.Decode(&configuration)
+		err = decoder.Decode(&document)
 	default:
 		err = fmt.Errorf("unsupported configuration format %q", format)
 	}
 	if err != nil {
-		return Config{}, fmt.Errorf("decode configuration: %w", err)
+		return Document{}, fmt.Errorf("decode configuration: %w", err)
 	}
-	if err := ValidateConfig(configuration); err != nil {
-		return Config{}, err
+	if err := Validate(document); err != nil {
+		return Document{}, err
 	}
-	return configuration, nil
+	return document, nil
+}
+
+func Validate(document Document) error {
+	if document.SchemaVersion != CurrentVersion {
+		return PathError{Path: "$.schema_version", Message: fmt.Sprintf("unsupported version %q", document.SchemaVersion)}
+	}
+	if document.Display.TextEncoding != "UTF-8" {
+		return PathError{Path: "$.display.text_encoding", Message: "only UTF-8 is supported"}
+	}
+	if document.Display.UnicodeNormalization != "NFC" {
+		return PathError{Path: "$.display.unicode_normalization", Message: "only NFC is supported"}
+	}
+	if document.Runtime.MaximumMemoryBytes <= 0 {
+		return PathError{Path: "$.runtime.maximum_memory_bytes", Message: "must be greater than zero"}
+	}
+	if document.Runtime.LockRetryCount < 0 || document.Interfaces.RecentWorkflows < 0 {
+		return PathError{Path: "$.runtime", Message: "counts must not be negative"}
+	}
+	for path, value := range map[string]string{
+		"$.runtime.lock_retry_interval":  document.Runtime.LockRetryInterval,
+		"$.runtime.lock_timeout":         document.Runtime.LockTimeout,
+		"$.runtime.failed_run_retention": document.Runtime.FailedRunRetention,
+	} {
+		duration, err := time.ParseDuration(value)
+		if err != nil || duration < 0 {
+			return PathError{Path: path, Message: fmt.Sprintf("invalid non-negative duration %q", value)}
+		}
+	}
+	if err := validateUniqueAliases(document.Aliases); err != nil {
+		return err
+	}
+	if err := validateUniqueSemanticTypes(document.SemanticTypes); err != nil {
+		return err
+	}
+	if err := validateStyles(document.Styles, document.Output.DefaultStyle); err != nil {
+		return err
+	}
+	return nil
 }
 
 func configSchema() (*jsonschema.Schema, error) {
-	compileConfigSchemaOnce.Do(func() {
-		contents, err := configSchemaFiles.ReadFile("schema/config-v1.schema.json")
+	compileOnce.Do(func() {
+		payload, err := configs.Schema()
 		if err != nil {
-			compiledConfigSchemaErr = err
+			compiledError = err
 			return
 		}
-		document, err := jsonschema.UnmarshalJSON(bytes.NewReader(contents))
+		document, err := jsonschema.UnmarshalJSON(bytes.NewReader(payload))
 		if err != nil {
-			compiledConfigSchemaErr = err
+			compiledError = err
 			return
 		}
 		compiler := jsonschema.NewCompiler()
-		if err := compiler.AddResource(configSchemaURL, document); err != nil {
-			compiledConfigSchemaErr = err
+		if err := compiler.AddResource(schemaURL, document); err != nil {
+			compiledError = err
 			return
 		}
-		compiledConfigSchema, compiledConfigSchemaErr = compiler.Compile(configSchemaURL)
+		compiled, compiledError = compiler.Compile(schemaURL)
 	})
-	return compiledConfigSchema, compiledConfigSchemaErr
+	return compiled, compiledError
 }
 
-func configDocumentForSchema(payload []byte, format contract.DocumentFormat) (any, error) {
+func normalizeForSchema(payload []byte, format Format) (any, error) {
 	switch format {
-	case contract.DocumentJSON:
+	case FormatJSON:
 		value, err := jsonschema.UnmarshalJSON(bytes.NewReader(payload))
 		if err != nil {
 			return nil, fmt.Errorf("decode JSON configuration: %w", err)
 		}
 		return value, nil
-	case contract.DocumentYAML:
+	case FormatYAML:
 		var value any
 		if err := yaml.Unmarshal(payload, &value); err != nil {
 			return nil, fmt.Errorf("decode YAML configuration: %w", err)
 		}
-		jsonValue, err := json.Marshal(value)
+		normalized, err := json.Marshal(value)
 		if err != nil {
 			return nil, fmt.Errorf("normalize YAML configuration: %w", err)
 		}
-		converted, err := jsonschema.UnmarshalJSON(bytes.NewReader(jsonValue))
+		value, err = jsonschema.UnmarshalJSON(bytes.NewReader(normalized))
 		if err != nil {
 			return nil, fmt.Errorf("normalize YAML configuration: %w", err)
 		}
-		return converted, nil
+		return value, nil
 	default:
 		return nil, fmt.Errorf("unsupported configuration format %q", format)
 	}
 }
 
-func collectConfigSchemaErrors(validationError *jsonschema.ValidationError, findings *contract.ValidationErrors) {
-	if len(validationError.Causes) > 0 {
-		for _, cause := range validationError.Causes {
-			collectConfigSchemaErrors(cause, findings)
+func schemaErrors(err error) error {
+	var validationError *jsonschema.ValidationError
+	if !errors.As(err, &validationError) {
+		return fmt.Errorf("validate configuration schema: %w", err)
+	}
+	findings := make(ValidationErrors, 0)
+	collectSchemaErrors(validationError, &findings)
+	return findings
+}
+
+func collectSchemaErrors(value *jsonschema.ValidationError, findings *ValidationErrors) {
+	if len(value.Causes) > 0 {
+		for _, cause := range value.Causes {
+			collectSchemaErrors(cause, findings)
 		}
 		return
 	}
-	message := validationError.Error()
-	if output := validationError.BasicOutput(); output != nil && output.Error != nil {
+	message := value.Error()
+	if output := value.BasicOutput(); output != nil && output.Error != nil {
 		message = output.Error.String()
 	}
-	*findings = append(*findings, contract.PathError{
-		Path:    configInstancePath(validationError.InstanceLocation),
-		Message: message,
-	})
+	*findings = append(*findings, PathError{Path: instancePath(value.InstanceLocation), Message: message})
 }
 
-func configInstancePath(segments []string) string {
-	var path strings.Builder
-	path.WriteByte('$')
+func instancePath(segments []string) string {
+	var result strings.Builder
+	result.WriteByte('$')
 	for _, segment := range segments {
 		if _, err := strconv.Atoi(segment); err == nil {
-			path.WriteByte('[')
-			path.WriteString(segment)
-			path.WriteByte(']')
+			result.WriteByte('[')
+			result.WriteString(segment)
+			result.WriteByte(']')
 		} else {
-			path.WriteByte('.')
-			path.WriteString(segment)
+			result.WriteByte('.')
+			result.WriteString(segment)
 		}
 	}
-	return path.String()
+	return result.String()
+}
+
+func validateUniqueAliases(values []Alias) error {
+	seen := make(map[string]struct{}, len(values))
+	for index, value := range values {
+		key := strings.ToLower(strings.TrimSpace(value.Name))
+		if key == "" {
+			return PathError{Path: fmt.Sprintf("$.aliases[%d].name", index), Message: "identity is required"}
+		}
+		if _, exists := seen[key]; exists {
+			return PathError{Path: fmt.Sprintf("$.aliases[%d].name", index), Message: fmt.Sprintf("duplicate identity %q", value.Name)}
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateUniqueSemanticTypes(values []SemanticType) error {
+	seen := make(map[string]struct{}, len(values))
+	for index, value := range values {
+		key := strings.ToLower(strings.TrimSpace(value.Name))
+		if key == "" || strings.TrimSpace(value.DataType) == "" {
+			return PathError{Path: fmt.Sprintf("$.semantic_types[%d]", index), Message: "name and data_type are required"}
+		}
+		if _, exists := seen[key]; exists {
+			return PathError{Path: fmt.Sprintf("$.semantic_types[%d].name", index), Message: fmt.Sprintf("duplicate identity %q", value.Name)}
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func validateStyles(values []Style, selected string) error {
+	seen := make(map[string]struct{}, len(values))
+	for index, value := range values {
+		key := strings.ToLower(strings.TrimSpace(value.Name))
+		if key == "" {
+			return PathError{Path: fmt.Sprintf("$.styles[%d].name", index), Message: "identity is required"}
+		}
+		if _, exists := seen[key]; exists {
+			return PathError{Path: fmt.Sprintf("$.styles[%d].name", index), Message: fmt.Sprintf("duplicate identity %q", value.Name)}
+		}
+		seen[key] = struct{}{}
+	}
+	if _, exists := seen[strings.ToLower(selected)]; !exists {
+		return PathError{Path: "$.output.default_style", Message: fmt.Sprintf("unknown style %q", selected)}
+	}
+	return nil
 }

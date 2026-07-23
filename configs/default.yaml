@@ -1,0 +1,59 @@
+schema_version: v1
+
+display:
+  null_display: "-"
+  decimal_precision: 3
+  date_format: "02/01/06"
+  time_format: "15:04"
+  phone_format: "052-6105412"
+  text_encoding: UTF-8
+  unicode_normalization: NFC
+
+aliases: []
+
+semantic_types:
+  - name: Phones
+    data_type: string
+    default_format: "052-6105412"
+  - name: Dates
+    data_type: date
+    default_format: "02/01/06"
+
+styles:
+  - name: default
+    header_fill: "#D9EAF7"
+    header_text: "#000000"
+    alternating_row_fill: "#F7FBFE"
+    bold_headers: true
+    right_to_left: false
+
+output:
+  directory: "."
+  filename_template: "{{workflow_id}}-{{output_id}}-{{timestamp}}"
+  default_style: default
+  txt_delimiter: "\t"
+  collision: block
+
+cleaning:
+  mixed_type_action: block
+  deduplicate_keep: first
+  auto_normalize_formats: true
+  trim_detected_whitespace: true
+
+exceptions:
+  action: block
+  detail: summary
+
+boolean:
+  not_scope: both
+
+runtime:
+  maximum_memory_bytes: 536870912
+  lock_retry_count: 5
+  lock_retry_interval: 500ms
+  lock_timeout: 5s
+  temporary_workspace: data-toolkit
+  failed_run_retention: 24h
+
+interfaces:
+  recent_workflows: 20

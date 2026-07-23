@@ -1,25 +1,38 @@
 # Data Toolkit
 
-Purpose: Develop a local, deterministic, fast, and extensible toolkit that replaces one-off data-manipulation scripts.
+Purpose: Build a local, deterministic, fast, and extensible V1 product that
+replaces one-off data-manipulation scripts.
 
 Canonical requirements:
 
 `C:\Users\nevet\האחסון שלי\1 - אישי\Vaults\Programming_Vault\Programming\ארגז כלי דאטה\אפיון ראשוני.md`
 
-## Product Architecture
+## V1 Product Architecture
 
-- Go logical engine: filtering, mappings, comparisons, normalization, splitting, transformations, and data queries.
-- File engine: adapters between files and the canonical table model.
-- Workflow orchestrator: validates requests, builds an execution plan, runs operations, verifies outputs, and reports errors and exceptions.
-- Interfaces: Cobra terminal commands, an interactive Bubble Tea TUI, and Codex integration through documentation and skills.
+- `internal/core`: canonical identities, data types, cells, columns, tables, and
+  row streams.
+- `internal/logical`: explicitly registered, format-neutral operations.
+- `internal/fileengine`: explicitly registered format capabilities and shared
+  file-operation contracts.
+- `internal/orchestrator`: workflow validation, deterministic planning, and
+  registry dispatch.
+- `internal/application`: the shared in-process API for CLI, TUI, and future
+  Codex integration.
+- `internal/interfaces`: interface clients with no product or registry logic.
 
-## Initial Formats
+The active product foundation is specified by OpenSpec change
+`establish-data-toolkit-v1-foundation`. The previous MVP implementation is
+preserved as a separate, non-runtime module under `legacy/mvp`.
 
-- JSON
-- CSV
-- Excel
-- TXT
-- Google Sheets through an explicit Google Drive integration
+## V1 Extension Policy
+
+- A template is a versioned descriptor, behavior interface, constructor,
+  validation, and explicit instance-owned registry.
+- Extensions are compiled and composed explicitly; there are no dynamic
+  plugins, `init` registration, or executable configuration.
+- JSON, CSV, Excel, TXT, and Google are scaffolds only until separate changes
+  specify and implement them.
+- Columns are metadata. Values remain in bounded-memory row streams.
 
 ## Core Contracts
 
@@ -32,22 +45,22 @@ Canonical requirements:
 - Sheets can be addressed explicitly within workbooks and Google spreadsheets.
 - Final results include output files or query answers, validation results, exception reports, and error details.
 
-## Initial Scale
+## Target Scale
 
 - JSON files around 40 MB.
 - CSV datasets up to 500,000 rows.
 - Streaming or bounded-memory execution where it materially improves performance.
 
-## MVP Acceptance Workflows
+## Foundation Acceptance
 
-1. Filter the `ישוב` column in:
-   `C:\Users\nevet\האחסון שלי\5 - פעילות פוליטית\מפקד הדמוקרטים 2026\נתוני מתפקדים\all_final\all_final.xlsx`
-
-2. Extract selected fields to CSV from:
-   `C:\Users\nevet\האחסון שלי\5 - פעילות פוליטית\מפקד הדמוקרטים 2026\נתוני מתפקדים\all_final\ext_members_from_12072026_to_14072026_no_full_phone_2026-07-14-12-35-21.json`
-
-3. Replace the behavior of:
-   `C:\Users\nevet\האחסון שלי\5 - פעילות פוליטית\מפקד הדמוקרטים 2026\נתוני מתפקדים\scripts\Invoke-RawMemberCleanup.Streaming.py`
+- `go test ./...`, `go vet ./...`, and `go build ./cmd/data-toolkit` pass in
+  the root module.
+- External tests add a data type, logical operation, and file format through
+  implementation and explicit registration only.
+- The embedded complete defaults pass the strict V1 schema and resolve to typed
+  configuration.
+- CLI and TUI scaffolds use the same application API.
+- The root module never imports or builds `legacy/mvp`.
 
 ## Repository
 

@@ -14,7 +14,7 @@ import (
 )
 
 const approvedMVP3Script = `C:\Users\nevet\האחסון שלי\5 - פעילות פוליטית\מפקד הדמוקרטים 2026\נתוני מתפקדים\scripts\Invoke-RawMemberCleanup.Streaming.py`
-const mvp3BehaviorDoc = `C:\Users\nevet\data_toolkit\docs\mvp3-cleanup-script-behavior.md`
+const mvp3BehaviorDoc = `..\..\docs\mvp3-cleanup-script-behavior.md`
 
 type mvp3FixtureCase struct {
 	Filter   []string          `json:"filter"`

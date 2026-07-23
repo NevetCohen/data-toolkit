@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://data-toolkit.local/schema/config-v1.json",
+  "title": "Data Toolkit V1 configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "display",
+    "aliases",
+    "semantic_types",
+    "styles",
+    "output",
+    "cleaning",
+    "exceptions",
+    "boolean",
+    "runtime",
+    "interfaces"
+  ],
+  "properties": {
+    "schema_version": { "const": "v1" },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["null_display", "decimal_precision", "date_format", "time_format", "phone_format", "text_encoding", "unicode_normalization"],
+      "properties": {
+        "null_display": { "type": "string" },
+        "decimal_precision": { "type": "integer", "minimum": 0 },
+        "date_format": { "type": "string", "minLength": 1 },
+        "time_format": { "type": "string", "minLength": 1 },
+        "phone_format": { "type": "string", "minLength": 1 },
+        "text_encoding": { "const": "UTF-8" },
+        "unicode_normalization": { "const": "NFC" }
+      }
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/alias" }
+    },
+    "semantic_types": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/semanticType" }
+    },
+    "styles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/style" }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "filename_template", "default_style", "txt_delimiter", "collision"],
+      "properties": {
+        "directory": { "type": "string", "minLength": 1 },
+        "filename_template": { "type": "string", "minLength": 1 },
+        "default_style": { "type": "string", "minLength": 1 },
+        "txt_delimiter": { "type": "string", "minLength": 1 },
+        "collision": { "enum": ["block", "overwrite", "alternate_name"] }
+      }
+    },
+    "cleaning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mixed_type_action", "deduplicate_keep", "auto_normalize_formats", "trim_detected_whitespace"],
+      "properties": {
+        "mixed_type_action": { "enum": ["block", "report", "ignore"] },
+        "deduplicate_keep": { "enum": ["first", "last", "error"] },
+        "auto_normalize_formats": { "type": "boolean" },
+        "trim_detected_whitespace": { "type": "boolean" }
+      }
+    },
+    "exceptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "detail"],
+      "properties": {
+        "action": { "enum": ["block", "report", "ignore"] },
+        "detail": { "enum": ["summary", "full"] }
+      }
+    },
+    "boolean": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["not_scope"],
+      "properties": {
+        "not_scope": { "enum": ["source_1", "source_2", "both"] }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximum_memory_bytes", "lock_retry_count", "lock_retry_interval", "lock_timeout", "temporary_workspace", "failed_run_retention"],
+      "properties": {
+        "maximum_memory_bytes": { "type": "integer", "minimum": 1 },
+        "lock_retry_count": { "type": "integer", "minimum": 0 },
+        "lock_retry_interval": { "type": "string", "minLength": 1 },
+        "lock_timeout": { "type": "string", "minLength": 1 },
+        "temporary_workspace": { "type": "string", "minLength": 1 },
+        "failed_run_retention": { "type": "string", "minLength": 1 }
+      }
+    },
+    "interfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recent_workflows"],
+      "properties": {
+        "recent_workflows": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "alias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "semantic_type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "semantic_type": { "type": "string", "minLength": 1 }
+      }
+    },
+    "semanticType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "data_type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "data_type": { "type": "string", "minLength": 1 },
+        "default_format": { "type": "string" }
+      }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "bold_headers", "right_to_left"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "header_fill": { "type": "string" },
+        "header_text": { "type": "string" },
+        "alternating_row_fill": { "type": "string" },
+        "bold_headers": { "type": "boolean" },
+        "right_to_left": { "type": "boolean" }
+      }
+    }
+  }
+}

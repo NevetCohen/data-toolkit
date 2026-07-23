@@ -20,4 +20,4 @@
 - Use stable extension contracts for operations, file adapters, workflow steps, and table styles.
 - Prefer streaming or bounded-memory processing where practical.
 - Protect credentials and keep Google integrations behind explicit adapters.
-- Verify changes against the MVP workflows and realistic fixtures.
+- Verify changes against the active V1 OpenSpec contracts and realistic contract fixtures.

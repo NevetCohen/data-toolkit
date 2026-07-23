@@ -1,115 +1,133 @@
-# Data Toolkit architecture
+# Data Toolkit V1 Foundation Architecture
 
-## Sources of truth
+## Status
 
-The approved product brief is the English `Final Specification` in:
+`establish-data-toolkit-v1-foundation` is the active product baseline. It
+creates the contracts and package boundaries required for V1 development. It
+does not implement end-user operations or file formats.
 
-`C:\Users\nevet\האחסון שלי\1 - אישי\Vaults\Programming_Vault\Programming\ארגז כלי דאטה\אפיון ראשוני.md`
+The former MVP runtime is preserved under `legacy/mvp` in a nested Go module.
+Root commands do not traverse it, and an architecture test rejects imports from
+V1 into legacy code.
 
-Product context, repository instructions, OpenSpec artifacts, implementation
-code, tests, fixtures, schemas, and runtime documentation now share one
-repository:
+## Dependency graph
 
-`C:\Users\nevet\data_toolkit`
+```text
+cmd/data-toolkit
+        |
+internal/interfaces/{cli,tui}
+        |
+internal/application
+        |
+internal/orchestrator
+      /        \
+logical      fileengine
+      \        /
+      core + report
 
-The active OpenSpec change is:
-
-`C:\Users\nevet\data_toolkit\openspec\changes\build-data-toolkit-mvp`
-
-The product brief and approved source datasets are read-only. Runtime and
-acceptance workflows create new staged outputs and publish only validated
-results.
-
-## Target architecture
-
-The target runtime is one modular Go executable with four internal parts and
-three interfaces:
-
-1. The logical engine (`operation`) owns deterministic, format-independent data
-   transformations over canonical tables and row streams.
-2. The file engine (`adapter`) owns JSON, CSV, Excel, TXT, and Google
-   Sheets/Drive conversion, mapping, immutable snapshots, output staging,
-   validation, and native output styling.
-3. The workflow orchestrator (`orchestrator`) validates requests and policies,
-   obtains mapping reports, builds ordered plans, selects engines, controls
-   resources, verifies results, and reports warnings and exceptions.
-4. The application boundary (`application`) is the composition root and shared
-   application service. It wires built-in policy, adapters, operations, and the
-   local pipeline without introducing a new data engine.
-
-The three target interfaces are the Cobra terminal interface, the Bubble Tea
-interactive TUI, and Codex integration. All three submit the same versioned
-workflow contract and must not implement data logic independently.
-
-## As-built capabilities
-
-The following table distinguishes implemented behavior from target contracts.
-
-| Area | Implemented now | Still partial or placeholder |
-| --- | --- | --- |
-| Logical engine | Canonical operation registry; streaming rename with collision validation; streaming Unicode-safe concatenation with null and targeted trim behavior; output projection during adapter writing | Boolean filtering, normalization, regex/text replacement, deduplication, deletion, sorting, splitting, and cross-source Boolean operations |
-| File engine | Immutable local snapshots; staged publication and collision policies; JSON inspection/mapping/stream reading; CSV inspection/mapping/read/write/validation; Excel inspection, sheet selection, basic mapping, and row reading; external Google OAuth/client construction | JSON writing; Excel title/subheader/formula-warning/write/style/validation behavior; TXT adapter; Google discovery/read/write/style/validation |
-| Orchestrator | Contract/config/registry validation; basic multi-source mapping; output collision and immutable-source checks; ordered plans; started/final results; JSON/CSV local vertical slice; bounded spool primitives | Full cleaning handoff, extended mapping policies, all logical operations, cross-source execution, complete format coverage, and all MVP workflows |
-| Application service | `application.NewLocalService`, workflow-only validation, local execution, built-in registration of JSON/CSV/Excel and the operation registry | Google credential injection, complete adapter set, recent-workflow persistence, and approval-capable flows |
-| Terminal interface | One executable at `cmd/data-toolkit`; `workflow validate`; `workflow run`; YAML/JSON loading; workflow-relative path resolution; optional user config; JSON result output and exit codes 0/1/2 | Config-validation, mapping, recent-workflow, and other commands required by full OpenSpec task 14.1 |
-| Interactive TUI | Package boundary and pinned Bubble Tea dependencies | User flow and runtime implementation |
-| Codex interface | Repository instructions and local OpenSpec/domain skills | Executable discovery documentation, schema/operation help, and interface-equivalence tests |
-
-`docs/architecture.md` describes the target first, but the table above is the
-authoritative as-built qualification until the remaining OpenSpec tasks pass.
-
-## Package boundaries
-
-- `contract` owns versioned request and result contracts.
-- `config` resolves schema-validated policy without credentials.
-- `table` owns canonical values, rows, tables, streams, and provenance.
-- `operation` owns deterministic data logic and does not import adapters or the
-  orchestrator.
-- `adapter` maps external formats to and from canonical data.
-- `orchestrator` plans and coordinates engines but contains no row-value
-  transformations.
-- `report` owns report ordering and diagnostic helpers.
-- `application` composes the runtime and is imported only by interface layers.
-- `cli` and `tui` are interface layers over the application service.
-
-`internal/architecture/dependencies_test.go` enforces forbidden outward
-dependencies, including the rule that inner layers do not import
-`application`. Interface packages do not implement independent data logic.
-
-## Google adapter boundary
-
-Google Sheets and Drive support uses the Sheets API v4 and Drive API with
-external, least-privilege OAuth credentials. `clasp` is not required, installed,
-or invoked by Data Toolkit. Apps Script authoring, deployment, and management
-remain outside the adapter contract.
-
-## Test-data and repository boundaries
-
-Immutable inputs live below `testdata/fixtures`. Runtime test outputs use
-isolated directories below `testdata/generated`, are ignored by Git, and are
-removed after each test. Acceptance tests snapshot each source with
-`internal/testsupport` and assert that its size and SHA-256 digest remain
-unchanged.
-
-`.agents/skills` contains machine-local junctions and is ignored by Git.
-`scripts/setup-agent-skills.ps1` recreates those junctions idempotently; the
-actual OpenSpec skill sources under `.codex/skills` are versioned in this
-repository.
-
-## Local commands
-
-Build the executable:
-
-```powershell
-go build ./cmd/data-toolkit
+config -> embedded configs assets
 ```
 
-Validate or run a workflow:
+Dependencies point inward. Core owns only canonical identities and models.
+Logical operations do not access files. File formats do not contain logical
+transformations. The orchestrator validates dependencies and dispatches
+registered implementations; it does not switch on operation or format kinds.
+The application layer is the only API used by interface packages.
 
-```powershell
-go run ./cmd/data-toolkit workflow validate .\workflow.yaml
-go run ./cmd/data-toolkit workflow run .\workflow.yaml --config .\config.yaml
+## Extension template
+
+Every extension family has the same structural contract:
+
+1. stable identity and versioned descriptor;
+2. behavior interface;
+3. explicit constructor;
+4. deterministic validation;
+5. explicit instance-owned registry.
+
+Registries reject empty or duplicate identities, unsupported versions, invalid
+descriptors, and capability mismatches. Registration order does not affect
+capability output. Extensions are compiled into the composition root. Runtime
+plugin discovery, package-level `init` registration, and executable
+configuration are forbidden.
+
+### Canonical data types
+
+A data-type handler parses text into an immutable canonical `Value`, validates
+the value, compares two values deterministically, and renders a value under
+explicit display options. Null, string, Boolean, exact integer, exact decimal,
+date, time, JSON object, and JSON array use this same registry contract.
+
+### Logical operations
+
+Each executor provides a descriptor, parameter schema, validation, and
+`Execute`. Workflows use a generic operation envelope:
+
+```yaml
+id: normalized_members
+kind: future.normalize
+inputs: [members]
+parameters: {}
+overrides: {}
 ```
 
-Run `scripts/dev.ps1` with one of `format`, `vet`, `unit`, `race`, `build`, or
-`all`. These commands do not require live Google credentials.
+The operation registry stores the executable implementation and validates its
+JSON parameters before execution. The orchestrator resolves only operation
+identities and dependencies.
+
+### File formats and file operations
+
+A file-format provider declares and implements only the capabilities it owns:
+inspect, map, read, write, style, or validate. Registration fails if declared
+and implemented capabilities differ. The JSON, CSV, Excel, TXT, and Google
+packages advertise no capabilities in this change.
+
+Snapshot, lock, staging, output validation, publication, and cleanup are
+format-neutral contracts under `internal/fileengine/operation`.
+
+## Canonical data flow
+
+`table.Schema` contains column metadata and opaque source bindings.
+`table.RowStream` carries the actual values incrementally. A `cell.Cell`
+contains an immutable canonical value plus source, sheet, row, and column
+provenance. Columns never materialize all their values.
+
+## Application API
+
+The in-process API exposes:
+
+- `Capabilities`
+- `ValidateConfig`
+- `ValidateWorkflow`
+- `Map`
+- `Plan`
+- `Run`
+
+CLI and TUI call this API directly. Future Codex integration will use the same
+API or its JSON/YAML contract. V1 foundation opens no network listener.
+
+Runs emit monotonically increasing validation, planning, operation, and
+terminal events through an optional observer. Plans preserve the deterministic
+workflow order and reject forward or missing dependencies.
+
+## Configuration
+
+`configs/default.yaml` is the complete non-secret V1 default. The embedded
+`configs/schema/config-v1.schema.json` rejects unknown fields and invalid
+values before decoding to typed Go configuration.
+
+Precedence is:
+
+```text
+defaults -> user config -> workflow overrides -> output overrides
+```
+
+Resolution returns a copy and never mutates a lower-precedence layer.
+Credentials and extension registrations are intentionally outside the config.
+
+## Adding future product capabilities
+
+A new capability requires its own OpenSpec change. Its implementation supplies
+the appropriate interface and constructor, registers it explicitly in the
+composition root, adds contract and product tests, and updates capability
+documentation. Adding a logical operation must not require an orchestrator
+edit; adding a format must not require a logical-engine edit.
