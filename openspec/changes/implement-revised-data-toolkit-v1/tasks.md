@@ -44,9 +44,9 @@
 - [x] 3.8 Implement `ValidationResult` with the four fixed validation kinds and optional `OutputLocator` only for reopened output failures. <!-- model=gpt-5.6-luna; effort=medium -->
 - [x] 3.9 Implement `ExceptionSummary` with optional first locator and external report path. <!-- model=gpt-5.6-luna; effort=medium -->
 - [x] 3.10 Implement `PublishedOutput` with final path, format, hash, and size. <!-- model=gpt-5.6-luna; effort=low -->
-- [ ] 3.11 Implement every exact `RunReport` field and required/conditional presence rule. <!-- model=gpt-5.6-terra; effort=high -->
-- [ ] 3.12 Add JSON golden tests for succeeded, failed, blocked, and cancelled reports. <!-- model=gpt-5.6-terra; effort=high -->
-- [ ] 3.13 Add contract tests proving findings and exceptions remain in reports and do not enter compact receipts. <!-- model=gpt-5.6-terra; effort=high -->
+- [x] 3.11 Implement every exact `RunReport` field and required/conditional presence rule. <!-- model=gpt-5.6-terra; effort=high -->
+- [x] 3.12 Add JSON golden tests for succeeded, failed, blocked, and cancelled reports. <!-- model=gpt-5.6-terra; effort=high -->
+- [x] 3.13 Add contract tests proving findings and exceptions remain in reports and do not enter compact receipts. <!-- model=gpt-5.6-terra; effort=high -->
 
 ## 4. Exact Revised Configuration
 
@@ -78,7 +78,7 @@
 - [ ] 5.1 Implement generic `RequestEnvelope<T>` with exactly `schema_version`, `request_id`, and `payload`. <!-- model=gpt-5.6-luna; effort=medium -->
 - [ ] 5.2 Implement generic `ResultEnvelope<T>` with exclusive `result`/`error` branches. <!-- model=gpt-5.6-terra; effort=medium -->
 - [ ] 5.3 Add request-correlation and `additionalProperties:false` golden tests for both envelopes. <!-- model=gpt-5.6-terra; effort=medium -->
-- [ ] 5.4 Implement `APIError` with all eight exact fields and no unlisted field, including exactly one `SourceLocator` or `OutputLocator` variant when present and conditional `RunFailureContext.receipt_id` only after receipt append. <!-- model=gpt-5.6-luna; effort=medium -->
+- [x] 5.4 Implement `APIError` with all eight exact fields and no unlisted field, including exactly one `SourceLocator` or `OutputLocator` variant when present and conditional `RunFailureContext.receipt_id` only after receipt append. <!-- model=gpt-5.6-luna; effort=medium -->
 - [ ] 5.5 Register the eighteen exact API error codes from the Application API spec, including `resource_limit_exceeded`. <!-- model=gpt-5.6-luna; effort=medium -->
 - [ ] 5.6 Implement error-code validation and deterministic sorted details. <!-- model=gpt-5.6-terra; effort=medium -->
 - [ ] 5.7 Implement `CapabilitiesRequest` as an empty strict object. <!-- model=gpt-5.6-luna; effort=low -->
@@ -95,7 +95,7 @@
 
 ## 6. Compact Run Receipt Store
 
-- [ ] 6.1 Implement `RunReceipt` with exactly the thirteen allowed fields and conditional source/output/error fields. <!-- model=gpt-5.6-terra; effort=high -->
+- [x] 6.1 Implement `RunReceipt` with exactly the thirteen allowed fields and conditional source/output/error fields. <!-- model=gpt-5.6-terra; effort=high -->
 - [ ] 6.2 Reject every unlisted receipt field and fail serialization tests if one appears. <!-- model=gpt-5.6-luna; effort=medium -->
 - [ ] 6.3 Compute `ReceiptID` deterministically from the normalized terminal record excluding `receipt_id`. <!-- model=gpt-5.6-terra; effort=high -->
 - [ ] 6.4 Implement the local append-only receipt-store interface. <!-- model=gpt-5.6-terra; effort=medium -->
