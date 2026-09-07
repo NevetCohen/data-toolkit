@@ -7,6 +7,9 @@ import (
 
 	"data-toolkit/internal/application"
 	"data-toolkit/internal/config"
+	"data-toolkit/internal/core"
+	"data-toolkit/internal/core/cell"
+	"data-toolkit/internal/core/column"
 	"data-toolkit/internal/core/datatype"
 	"data-toolkit/internal/core/table"
 	fileformat "data-toolkit/internal/fileengine/format"
@@ -68,7 +71,7 @@ func TestApplicationAPIPlansAndRunsRegisteredOperations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(capabilities.DataTypes) != 9 || len(capabilities.LogicalOperations) != 1 || len(capabilities.FileFormats) != 0 {
+	if len(capabilities.DataTypes) != 7 || len(capabilities.LogicalOperations) != 1 || len(capabilities.FileFormats) != 0 {
 		t.Fatalf("unexpected capabilities: %#v", capabilities)
 	}
 
@@ -91,7 +94,7 @@ func TestApplicationAPIPlansAndRunsRegisteredOperations(t *testing.T) {
 	result, err := service.Run(context.Background(), orchestrator.RunRequest{
 		Workflow: workflow,
 		Inputs: map[string]table.Dataset{
-			"source": {Schema: table.Schema{ID: "source-table", SourceID: "source"}, Rows: table.NewSliceStream(nil)},
+			"source": canonicalInputDataset(t),
 		},
 	})
 	if err != nil {
@@ -111,6 +114,40 @@ func TestApplicationAPIPlansAndRunsRegisteredOperations(t *testing.T) {
 	if result.Events[len(result.Events)-1].Kind != "workflow.completed" {
 		t.Fatalf("terminal event = %q", result.Events[len(result.Events)-1].Kind)
 	}
+}
+
+func canonicalInputDataset(t *testing.T) table.Dataset {
+	t.Helper()
+	value, err := core.NewValue("string", []byte(`"value"`))
+	if err != nil {
+		t.Fatalf("construct canonical value: %v", err)
+	}
+	dataset := table.Dataset{
+		Schema: table.Schema{
+			ID:       "source-table",
+			SourceID: "source",
+			Columns: []column.ColumnDescriptor{{
+				ID:               "value",
+				PhysicalPosition: "A",
+				SourceHeader:     "Value",
+				DataType:         "string",
+				TypeAuthority:    core.TypeAuthorityDeclared,
+			}},
+		},
+		Rows: table.NewSliceStream([]table.Row{{
+			ID:       "row-1",
+			SourceID: "source",
+			Ordinal:  0,
+			Cells: []cell.Cell{{
+				ColumnID: "value",
+				Value:    value,
+			}},
+		}}),
+	}
+	if err := dataset.Validate(); err != nil {
+		t.Fatalf("construct canonical dataset: %v", err)
+	}
+	return dataset
 }
 
 func TestWorkflowRejectsForwardAndUnregisteredDependencies(t *testing.T) {

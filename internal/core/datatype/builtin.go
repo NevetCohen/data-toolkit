@@ -10,19 +10,19 @@ import (
 	"strings"
 	"time"
 
+	"data-toolkit/internal/core"
+
 	"github.com/cockroachdb/apd/v3"
 )
 
 const (
-	NullID       ID = "null"
-	StringID     ID = "string"
-	BooleanID    ID = "boolean"
-	IntegerID    ID = "integer"
-	DecimalID    ID = "decimal"
-	DateID       ID = "date"
-	TimeID       ID = "time"
-	JSONObjectID ID = "json_object"
-	JSONArrayID  ID = "json_array"
+	NullID    ID = "null"
+	StringID  ID = "string"
+	BooleanID ID = "boolean"
+	IntegerID ID = "integer"
+	DecimalID ID = "decimal"
+	DateID    ID = "date"
+	TimeID    ID = "time"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 )
 
 type builtinHandler struct {
-	descriptor Descriptor
+	descriptor DataTypeDescriptor
 	parse      func(string) ([]byte, error)
 	validate   func([]byte) error
 	compare    func([]byte, []byte) (int, error)
@@ -42,22 +42,22 @@ func (handler builtinHandler) Descriptor() Descriptor {
 	return handler.descriptor
 }
 
-func (handler builtinHandler) Parse(input string) (Value, error) {
+func (handler builtinHandler) Parse(input string) (core.Value, error) {
 	encoded, err := handler.parse(input)
 	if err != nil {
-		return Value{}, err
+		return core.Value{}, err
 	}
-	return NewValue(handler.descriptor.ID, encoded)
+	return core.NewValue(handler.descriptor.ID, encoded)
 }
 
-func (handler builtinHandler) Validate(value Value) error {
+func (handler builtinHandler) Validate(value core.Value) error {
 	if value.TypeID() != handler.descriptor.ID {
 		return fmt.Errorf("value type %q does not match %q", value.TypeID(), handler.descriptor.ID)
 	}
 	return handler.validate(value.Encoded())
 }
 
-func (handler builtinHandler) Compare(left, right Value) (int, error) {
+func (handler builtinHandler) Compare(left, right core.Value) (int, error) {
 	if err := handler.Validate(left); err != nil {
 		return 0, err
 	}
@@ -67,7 +67,7 @@ func (handler builtinHandler) Compare(left, right Value) (int, error) {
 	return handler.compare(left.Encoded(), right.Encoded())
 }
 
-func (handler builtinHandler) Render(value Value, options RenderOptions) (string, error) {
+func (handler builtinHandler) Render(value core.Value, options RenderOptions) (string, error) {
 	if err := handler.Validate(value); err != nil {
 		return "", err
 	}
@@ -86,15 +86,12 @@ func NewBuiltinRegistry() (*Registry, error) {
 }
 
 func builtinHandlers() []Handler {
-	textCompare := func(left, right []byte) (int, error) {
-		return bytes.Compare(left, right), nil
-	}
 	rawRender := func(encoded []byte, _ RenderOptions) (string, error) {
 		return string(encoded), nil
 	}
 	return []Handler{
 		builtinHandler{
-			descriptor: Descriptor{ID: NullID, Version: CurrentVersion, Name: "Null"},
+			descriptor: DataTypeDescriptor{ID: NullID, Version: CurrentVersion, Name: "Null", CanonicalKind: CanonicalKindNull},
 			parse: func(input string) ([]byte, error) {
 				if input != "null" {
 					return nil, fmt.Errorf("null input must be literal null")
@@ -113,9 +110,17 @@ func builtinHandlers() []Handler {
 			},
 		},
 		builtinHandler{
-			descriptor: Descriptor{ID: StringID, Version: CurrentVersion, Name: "String"},
-			parse:      func(input string) ([]byte, error) { return json.Marshal(input) },
+			descriptor: DataTypeDescriptor{ID: StringID, Version: CurrentVersion, Name: "String", CanonicalKind: CanonicalKindString},
+			parse: func(input string) ([]byte, error) {
+				if input == "" {
+					return nil, nil
+				}
+				return json.Marshal(input)
+			},
 			validate: func(encoded []byte) error {
+				if len(encoded) == 0 {
+					return nil
+				}
 				var value string
 				if err := json.Unmarshal(encoded, &value); err != nil {
 					return fmt.Errorf("invalid canonical string: %w", err)
@@ -123,6 +128,9 @@ func builtinHandlers() []Handler {
 				return nil
 			},
 			compare: func(left, right []byte) (int, error) {
+				if len(left) == 0 || len(right) == 0 {
+					return strings.Compare(string(left), string(right)), nil
+				}
 				var leftValue, rightValue string
 				if err := json.Unmarshal(left, &leftValue); err != nil {
 					return 0, err
@@ -133,6 +141,9 @@ func builtinHandlers() []Handler {
 				return strings.Compare(leftValue, rightValue), nil
 			},
 			render: func(encoded []byte, _ RenderOptions) (string, error) {
+				if len(encoded) == 0 {
+					return "", nil
+				}
 				var value string
 				if err := json.Unmarshal(encoded, &value); err != nil {
 					return "", err
@@ -141,7 +152,7 @@ func builtinHandlers() []Handler {
 			},
 		},
 		builtinHandler{
-			descriptor: Descriptor{ID: BooleanID, Version: CurrentVersion, Name: "Boolean"},
+			descriptor: DataTypeDescriptor{ID: BooleanID, Version: CurrentVersion, Name: "Boolean", CanonicalKind: CanonicalKindBoolean},
 			parse: func(input string) ([]byte, error) {
 				value, err := strconv.ParseBool(input)
 				if err != nil {
@@ -165,7 +176,7 @@ func builtinHandlers() []Handler {
 			render: rawRender,
 		},
 		builtinHandler{
-			descriptor: Descriptor{ID: IntegerID, Version: CurrentVersion, Name: "Integer"},
+			descriptor: DataTypeDescriptor{ID: IntegerID, Version: CurrentVersion, Name: "Integer", CanonicalKind: CanonicalKindInteger},
 			parse:      validateInteger,
 			validate: func(encoded []byte) error {
 				_, err := validateInteger(string(encoded))
@@ -175,7 +186,7 @@ func builtinHandlers() []Handler {
 			render:  rawRender,
 		},
 		builtinHandler{
-			descriptor: Descriptor{ID: DecimalID, Version: CurrentVersion, Name: "Decimal"},
+			descriptor: DataTypeDescriptor{ID: DecimalID, Version: CurrentVersion, Name: "Decimal", CanonicalKind: CanonicalKindDecimal},
 			parse:      validateDecimal,
 			validate: func(encoded []byte) error {
 				_, err := validateDecimal(string(encoded))
@@ -186,8 +197,6 @@ func builtinHandlers() []Handler {
 		},
 		newTemporalHandler(DateID, "Date", "2006-01-02", func(options RenderOptions) string { return options.DateFormat }),
 		newTemporalHandler(TimeID, "Time", "15:04:05.999999999", func(options RenderOptions) string { return options.TimeFormat }),
-		newJSONHandler(JSONObjectID, "JSON object", '{', textCompare),
-		newJSONHandler(JSONArrayID, "JSON array", '[', textCompare),
 	}
 }
 
@@ -241,7 +250,7 @@ func newTemporalHandler(id ID, name, canonicalLayout string, outputLayout func(R
 		return []byte(value.Format(canonicalLayout)), nil
 	}
 	return builtinHandler{
-		descriptor: Descriptor{ID: id, Version: CurrentVersion, Name: name},
+		descriptor: DataTypeDescriptor{ID: id, Version: CurrentVersion, Name: name, CanonicalKind: CanonicalKind(id)},
 		parse:      parse,
 		validate: func(encoded []byte) error {
 			_, err := parse(string(encoded))
@@ -275,33 +284,5 @@ func newTemporalHandler(id ID, name, canonicalLayout string, outputLayout func(R
 			}
 			return value.Format(layout), nil
 		},
-	}
-}
-
-func newJSONHandler(id ID, name string, prefix byte, compare func([]byte, []byte) (int, error)) Handler {
-	parse := func(input string) ([]byte, error) {
-		raw := []byte(input)
-		if !json.Valid(raw) {
-			return nil, fmt.Errorf("invalid JSON")
-		}
-		var compact bytes.Buffer
-		if err := json.Compact(&compact, raw); err != nil {
-			return nil, err
-		}
-		encoded := compact.Bytes()
-		if len(encoded) == 0 || encoded[0] != prefix {
-			return nil, fmt.Errorf("JSON value is not a %s", strings.ToLower(name))
-		}
-		return append([]byte(nil), encoded...), nil
-	}
-	return builtinHandler{
-		descriptor: Descriptor{ID: id, Version: CurrentVersion, Name: name},
-		parse:      parse,
-		validate: func(encoded []byte) error {
-			_, err := parse(string(encoded))
-			return err
-		},
-		compare: compare,
-		render:  func(encoded []byte, _ RenderOptions) (string, error) { return string(encoded), nil },
 	}
 }

@@ -1,5 +1,8 @@
 # Data Toolkit Project
 
+## Primary Obsidian Vault
+- `Programming_Vault` — `C:\Users\nevet\האחסון שלי\1 - אישי\Vaults\Programming_Vault`
+
 ## Language
 - Hebrew for discussion and user-facing documentation.
 - English for code, identifiers, APIs, schemas, and technical documentation.
@@ -21,3 +24,7 @@
 - Prefer streaming or bounded-memory processing where practical.
 - Protect credentials and keep Google integrations behind explicit adapters.
 - Verify changes against the active V1 OpenSpec contracts and realistic contract fixtures.
+
+## OpenSpec Completion Terminology
+- Do not claim completion or create a final Obsidian report until a complete task chapter is finished and every task in that chapter has undergone final validation.
+- Definitions: a task is a single checkbox line in `tasks.md`; a task chapter is a `##` subheading in `tasks.md` and all checkbox tasks beneath it, up to the next `##` subheading or end of file.

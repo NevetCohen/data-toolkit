@@ -174,13 +174,8 @@ func (service Service) Run(ctx context.Context, request RunRequest) (RunResult, 
 			emit("workflow.failed", request.Workflow.ID, err.Error())
 			return RunResult{Events: events}, err
 		}
-		if err := dataset.Schema.Validate(); err != nil {
+		if err := dataset.Validate(); err != nil {
 			err = fmt.Errorf("workflow input %q: %w", identity, err)
-			emit("workflow.failed", request.Workflow.ID, err.Error())
-			return RunResult{Events: events}, err
-		}
-		if dataset.Rows == nil {
-			err := fmt.Errorf("workflow input %q has no row stream", identity)
 			emit("workflow.failed", request.Workflow.ID, err.Error())
 			return RunResult{Events: events}, err
 		}

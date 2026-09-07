@@ -31,7 +31,8 @@ $localSkills = @(
     'openspec-archive-change',
     'openspec-explore',
     'openspec-propose',
-    'openspec-sync-specs'
+    'openspec-sync-specs',
+    'data-toolkit-google-sheets'
 )
 
 New-Item -ItemType Directory -Path $skillsRoot -Force | Out-Null

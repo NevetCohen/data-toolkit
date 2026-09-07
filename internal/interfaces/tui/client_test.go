@@ -25,7 +25,7 @@ func TestTUIClientDelegatesToApplicationAPI(t *testing.T) {
 	}
 	client := tui.New(service)
 	capabilities, err := client.Capabilities(context.Background())
-	if err != nil || len(capabilities.DataTypes) != 9 {
+	if err != nil || len(capabilities.DataTypes) != 7 {
 		t.Fatalf("capabilities = %#v, %v", capabilities, err)
 	}
 	payload, _ := configs.Default()

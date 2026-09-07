@@ -1,0 +1,122 @@
+{
+  "schema_version": "cleanup-script-replacement-fixtures-v1",
+  "source": "task-1.8-static-behavior-inventory",
+  "fixtures": [
+    {
+      "id": "json_duplicate_entity_id",
+      "behavior": "Skip a later JSON object whose normalized EntityID duplicates an earlier valid EntityID.",
+      "input": "fixtures/01-json-duplicate-entity-id.json",
+      "expected": "One accepted record with EntityID 1001; DuplicateJsonEntityIds is 1.",
+      "operation_ids": ["row.deduplicate"]
+    },
+    {
+      "id": "json_invalid_entity_id",
+      "behavior": "Reject empty, non-digit, and non-object JSON Data entries as missing or invalid EntityIDs.",
+      "input": "fixtures/02-json-invalid-entity-id.json",
+      "expected": "Only EntityID 1002 is accepted; MissingOrInvalidEntityIds is 3.",
+      "operation_ids": ["text.trim", "row.filter"]
+    },
+    {
+      "id": "filter_exact_after_trim",
+      "behavior": "Apply the requested filter by exact equality after textual normalization.",
+      "input": "fixtures/03-json-filter-after-trim.json",
+      "expected": "With filter Group=alpha, only EntityID 1003 is accepted; FilteredOutRecords is 1.",
+      "operation_ids": ["text.trim", "row.filter"]
+    },
+    {
+      "id": "null_normalizes_to_empty",
+      "behavior": "Normalize a JSON null field value to an empty text value before output mapping.",
+      "input": "fixtures/04-json-null-normalization.json",
+      "expected": "OptionalText is rendered as empty text for the accepted record.",
+      "outside_v1": "V1 preserves null-versus-empty distinctions; no fixed logical operation converts canonical null to empty text."
+    },
+    {
+      "id": "missing_data_array",
+      "behavior": "Fail when a top-level Data array is absent.",
+      "input": "fixtures/05-json-missing-data.json",
+      "expected": "Failure before records are emitted.",
+      "outside_v1": "This is JSON reader root-shape validation, not one of the ten logical operations."
+    },
+    {
+      "id": "truncated_data_array",
+      "behavior": "Fail when the top-level Data array is truncated.",
+      "input": "fixtures/06-json-truncated-data.json",
+      "expected": "Parse failure before records are emitted.",
+      "outside_v1": "This is JSON reader parse failure behavior, not one of the ten logical operations."
+    },
+    {
+      "id": "chunked_json_read",
+      "behavior": "Read a top-level Data array through fixed 4 MiB chunks.",
+      "expected": "Chunking is externally reported only through successful processing of an input crossing a 4 MiB boundary.",
+      "outside_v1": "The fixed 4 MiB reader-buffer policy is not a logical operation and V1 does not specify that exact chunk size."
+    },
+    {
+      "id": "header_driven_projection",
+      "behavior": "Derive a supported output column from a recognized input field selected by an existing CSV header.",
+      "expected": "The selected recognized value appears under the existing requested header.",
+      "operation_ids": ["table.project", "table.rename"]
+    },
+    {
+      "id": "address_composition",
+      "behavior": "Compose an address from street, city, and house fallbacks while dropping blank or zero-only house numbers.",
+      "expected": "The selected address text contains no blank or zero-only house-number component.",
+      "outside_v1": "The fixed catalog has no multi-column concatenation, conditional fallback, or derived-column operation."
+    },
+    {
+      "id": "phone_columns_blank",
+      "behavior": "Emit blank values in both phone output columns.",
+      "expected": "Both requested phone cells are empty for every accepted record.",
+      "outside_v1": "The catalog has no add-column or unconditional constant-assignment operation."
+    },
+    {
+      "id": "unknown_header_blank",
+      "behavior": "Emit a blank value for an unrecognized existing CSV header.",
+      "expected": "The unrecognized output column is present and empty.",
+      "outside_v1": "The catalog cannot create an output column populated with a constant blank."
+    },
+    {
+      "id": "numbered_index_from_existing_csv",
+      "behavior": "Number appended CSV rows from the last existing CSV index.",
+      "input": "fixtures/08-existing-csv.csv",
+      "expected": "The next appended row receives index 8.",
+      "outside_v1": "Requires reading and appending to an existing output plus row-number generation; V1 has one source, one new output, and no sequence operation."
+    },
+    {
+      "id": "rewrite_existing_entity_id_file",
+      "behavior": "Trim entity-id lines, remove a trailing comma, drop invalid values, collapse duplicates, and rewrite the entity-id file.",
+      "input": "fixtures/07-existing-entity-ids.txt",
+      "expected": "The rewritten entity-id content contains only one 1008 and one 0000; InvalidEntityIdLinesRemoved is 1.",
+      "outside_v1": "Although trim, filter, and deduplicate resemble logical operations, this behavior needs a second source and rewrites it; V1 requires one immutable source and one new output."
+    },
+    {
+      "id": "ids_only_no_csv",
+      "behavior": "In ids-only mode, omit CSV output while updating entity IDs.",
+      "expected": "No CSV artifact is created.",
+      "outside_v1": "V1 successful workflows publish exactly one new declared output and do not support this mode-dependent omitted output."
+    },
+    {
+      "id": "dry_run_writes_nothing",
+      "behavior": "In dry-run mode, write neither CSV nor entity-id output.",
+      "expected": "No output artifact changes.",
+      "outside_v1": "V1 has no dry-run execution mode that suppresses its required single output publication."
+    },
+    {
+      "id": "path_and_argument_validation",
+      "behavior": "Fail for missing parent/input paths and invalid CSV-path mode or incomplete filter arguments.",
+      "expected": "Argument or path validation failure before output changes.",
+      "outside_v1": "This is command-line argument and path-mode validation, not a fixed logical operation."
+    },
+    {
+      "id": "cleanup_report_fields",
+      "behavior": "Return the named cleanup counters, paths, mode, and filter fields in the report.",
+      "expected": "The report exposes every field listed in the task 1.8 inventory.",
+      "outside_v1": "V1 RunReport does not define this exact cleanup-specific report schema, and logical operations do not own report assembly."
+    },
+    {
+      "id": "temporary_file_removal",
+      "behavior": "Remove temporary files on terminal completion.",
+      "expected": "No cleanup-script temporary file remains after success or failure.",
+      "outside_v1": "This is Writer finalization/resource cleanup behavior, not a fixed logical operation."
+    }
+  ]
+}

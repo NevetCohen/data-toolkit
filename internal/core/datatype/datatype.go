@@ -3,22 +3,51 @@
 package datatype
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
+
+	"data-toolkit/internal/core"
 )
 
 const CurrentVersion = "v1"
 
-type ID string
+type ID = core.DataTypeID
 
-type Descriptor struct {
-	ID      ID     `json:"id"`
-	Version string `json:"version"`
-	Name    string `json:"name"`
+// CanonicalKind identifies the canonical representation of a registered data type.
+type CanonicalKind string
+
+const (
+	CanonicalKindNull    CanonicalKind = "null"
+	CanonicalKindString  CanonicalKind = "string"
+	CanonicalKindInteger CanonicalKind = "integer"
+	CanonicalKindDecimal CanonicalKind = "decimal"
+	CanonicalKindBoolean CanonicalKind = "boolean"
+	CanonicalKindDate    CanonicalKind = "date"
+	CanonicalKindTime    CanonicalKind = "time"
+)
+
+func (kind CanonicalKind) Validate() error {
+	switch kind {
+	case CanonicalKindNull, CanonicalKindString, CanonicalKindInteger,
+		CanonicalKindDecimal, CanonicalKindBoolean, CanonicalKindDate, CanonicalKindTime:
+		return nil
+	default:
+		return fmt.Errorf("canonical kind %q is invalid", kind)
+	}
 }
+
+// DataTypeDescriptor describes one registered data type for runtime discovery.
+type DataTypeDescriptor struct {
+	ID            ID            `json:"id"`
+	Version       string        `json:"version"`
+	Name          string        `json:"name"`
+	CanonicalKind CanonicalKind `json:"canonical_kind"`
+}
+
+// Descriptor is retained as a compatibility alias for the data-type extension contract.
+type Descriptor = DataTypeDescriptor
 
 type RenderOptions struct {
 	NullDisplay      string
@@ -28,42 +57,14 @@ type RenderOptions struct {
 	PhoneFormat      string
 }
 
-// Value is immutable. Constructor and accessor methods copy encoded bytes.
-type Value struct {
-	typeID  ID
-	encoded []byte
-}
-
-func NewValue(typeID ID, encoded []byte) (Value, error) {
-	if strings.TrimSpace(string(typeID)) == "" {
-		return Value{}, fmt.Errorf("data type identity is required")
-	}
-	if len(encoded) == 0 {
-		return Value{}, fmt.Errorf("canonical encoded value is required")
-	}
-	return Value{typeID: typeID, encoded: append([]byte(nil), encoded...)}, nil
-}
-
-func (value Value) TypeID() ID {
-	return value.typeID
-}
-
-func (value Value) Encoded() []byte {
-	return append([]byte(nil), value.encoded...)
-}
-
-func (value Value) Equal(other Value) bool {
-	return value.typeID == other.typeID && bytes.Equal(value.encoded, other.encoded)
-}
-
 // Handler is the complete compile-time extension template for one canonical
 // data type.
 type Handler interface {
-	Descriptor() Descriptor
-	Parse(string) (Value, error)
-	Validate(Value) error
-	Compare(Value, Value) (int, error)
-	Render(Value, RenderOptions) (string, error)
+	Descriptor() DataTypeDescriptor
+	Parse(string) (core.Value, error)
+	Validate(core.Value) error
+	Compare(core.Value, core.Value) (int, error)
+	Render(core.Value, RenderOptions) (string, error)
 }
 
 type Constructor func() (Handler, error)
@@ -123,12 +124,12 @@ func (registry *Registry) Require(id ID) (Handler, error) {
 	return handler, nil
 }
 
-func (registry *Registry) Descriptors() []Descriptor {
+func (registry *Registry) Descriptors() []DataTypeDescriptor {
 	if registry == nil {
 		return nil
 	}
 	registry.mu.RLock()
-	result := make([]Descriptor, 0, len(registry.handlers))
+	result := make([]DataTypeDescriptor, 0, len(registry.handlers))
 	for _, handler := range registry.handlers {
 		result = append(result, handler.Descriptor())
 	}
@@ -137,22 +138,22 @@ func (registry *Registry) Descriptors() []Descriptor {
 	return result
 }
 
-func (registry *Registry) Parse(id ID, input string) (Value, error) {
+func (registry *Registry) Parse(id ID, input string) (core.Value, error) {
 	handler, err := registry.Require(id)
 	if err != nil {
-		return Value{}, err
+		return core.Value{}, err
 	}
 	value, err := handler.Parse(input)
 	if err != nil {
-		return Value{}, fmt.Errorf("parse %q value: %w", id, err)
+		return core.Value{}, fmt.Errorf("parse %q value: %w", id, err)
 	}
 	if err := handler.Validate(value); err != nil {
-		return Value{}, fmt.Errorf("validate parsed %q value: %w", id, err)
+		return core.Value{}, fmt.Errorf("validate parsed %q value: %w", id, err)
 	}
 	return value, nil
 }
 
-func (registry *Registry) Compare(left, right Value) (int, error) {
+func (registry *Registry) Compare(left, right core.Value) (int, error) {
 	if left.TypeID() != right.TypeID() {
 		return 0, fmt.Errorf("cannot compare data types %q and %q", left.TypeID(), right.TypeID())
 	}
@@ -163,7 +164,7 @@ func (registry *Registry) Compare(left, right Value) (int, error) {
 	return handler.Compare(left, right)
 }
 
-func (registry *Registry) Render(value Value, options RenderOptions) (string, error) {
+func (registry *Registry) Render(value core.Value, options RenderOptions) (string, error) {
 	handler, err := registry.Require(value.TypeID())
 	if err != nil {
 		return "", err
@@ -172,14 +173,17 @@ func (registry *Registry) Render(value Value, options RenderOptions) (string, er
 }
 
 func validateDescriptor(descriptor Descriptor, version string) error {
-	if strings.TrimSpace(string(descriptor.ID)) == "" {
-		return fmt.Errorf("identity is required")
+	if err := descriptor.ID.Validate(); err != nil {
+		return fmt.Errorf("identity: %w", err)
 	}
 	if descriptor.Version != version {
 		return fmt.Errorf("version %q is incompatible with registry version %q", descriptor.Version, version)
 	}
 	if strings.TrimSpace(descriptor.Name) == "" {
 		return fmt.Errorf("name is required for %q", descriptor.ID)
+	}
+	if err := descriptor.CanonicalKind.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

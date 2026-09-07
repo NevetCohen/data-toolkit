@@ -1,0 +1,4 @@
+interface:
+  display_name: "Data Toolkit Google Sheets"
+  short_description: "Bridge Google Sheets through verified XLSX"
+  default_prompt: "Use $data-toolkit-google-sheets to process a Google Spreadsheet through the Data Toolkit XLSX bridge."

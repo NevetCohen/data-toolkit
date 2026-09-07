@@ -3,73 +3,69 @@ package column
 
 import (
 	"fmt"
-	"strings"
+	"unicode/utf8"
 
 	"data-toolkit/internal/core"
-	"data-toolkit/internal/core/datatype"
+
+	"golang.org/x/text/unicode/norm"
 )
 
-type TypeAuthority string
-
-const (
-	TypeInferred TypeAuthority = "inferred"
-	TypeDeclared TypeAuthority = "declared"
-)
-
-type Range struct {
-	StartRow    uint64 `json:"start_row,omitempty"`
-	EndRow      uint64 `json:"end_row,omitempty"`
-	StartColumn string `json:"start_column,omitempty"`
-	EndColumn   string `json:"end_column,omitempty"`
-	Address     string `json:"address,omitempty"`
+// ColumnDescriptor is canonical schema metadata. Cell values remain in the row stream.
+type ColumnDescriptor struct {
+	ID               core.ColumnID      `json:"id"`
+	PhysicalPosition string             `json:"physical_position"`
+	SourceHeader     string             `json:"source_header"`
+	Subheader        *string            `json:"subheader,omitempty"`
+	Alias            *string            `json:"alias,omitempty"`
+	SemanticType     *string            `json:"semantic_type,omitempty"`
+	DataType         core.DataTypeID    `json:"data_type"`
+	TypeAuthority    core.TypeAuthority `json:"type_authority"`
 }
 
-type SourceBinding struct {
-	SourceID core.SourceID `json:"source_id"`
-	SheetID  core.SheetID  `json:"sheet_id"`
-	Kind     string        `json:"kind"`
-	Locator  string        `json:"locator"`
-}
+// Descriptor is retained as a compatibility alias while table construction is
+// migrated to the exact ColumnDescriptor name.
+type Descriptor = ColumnDescriptor
 
-// Descriptor is metadata only. Cell values remain in table.RowStream.
-type Descriptor struct {
-	ID            core.ColumnID `json:"id"`
-	Header        string        `json:"header"`
-	Subheader     string        `json:"subheader,omitempty"`
-	DataType      datatype.ID   `json:"data_type"`
-	TypeAuthority TypeAuthority `json:"type_authority"`
-	Range         *Range        `json:"range,omitempty"`
-	Binding       SourceBinding `json:"binding"`
-}
-
-func (descriptor Descriptor) Validate() error {
-	if descriptor.ID == "" {
-		return fmt.Errorf("column.id is required")
+func (descriptor ColumnDescriptor) Validate() error {
+	if err := descriptor.ID.Validate(); err != nil {
+		return fmt.Errorf("column.id: %w", err)
 	}
-	if strings.TrimSpace(descriptor.Header) == "" {
-		return fmt.Errorf("column.header is required")
+	if err := validateString("column.physical_position", descriptor.PhysicalPosition, true); err != nil {
+		return err
 	}
-	if descriptor.DataType == "" {
-		return fmt.Errorf("column.data_type is required")
+	if err := validateString("column.source_header", descriptor.SourceHeader, false); err != nil {
+		return err
 	}
-	switch descriptor.TypeAuthority {
-	case TypeInferred, TypeDeclared:
-	default:
-		return fmt.Errorf("column.type_authority %q is invalid", descriptor.TypeAuthority)
+	optionalFields := []struct {
+		name  string
+		value *string
+	}{
+		{name: "column.subheader", value: descriptor.Subheader},
+		{name: "column.alias", value: descriptor.Alias},
+		{name: "column.semantic_type", value: descriptor.SemanticType},
 	}
-	if descriptor.Binding.SourceID == "" {
-		return fmt.Errorf("column.binding.source_id is required")
-	}
-	if strings.TrimSpace(descriptor.Binding.Kind) == "" || strings.TrimSpace(descriptor.Binding.Locator) == "" {
-		return fmt.Errorf("column.binding kind and locator are required")
-	}
-	if descriptor.Range != nil {
-		if descriptor.Range.EndRow != 0 && descriptor.Range.EndRow < descriptor.Range.StartRow {
-			return fmt.Errorf("column.range end_row precedes start_row")
+	for _, field := range optionalFields {
+		if field.value != nil {
+			if err := validateString(field.name, *field.value, false); err != nil {
+				return err
+			}
 		}
-		if descriptor.Range.EndColumn != "" && descriptor.Range.StartColumn == "" {
-			return fmt.Errorf("column.range start_column is required when end_column is set")
-		}
+	}
+	if err := descriptor.DataType.Validate(); err != nil {
+		return fmt.Errorf("column.data_type: %w", err)
+	}
+	if err := descriptor.TypeAuthority.Validate(); err != nil {
+		return fmt.Errorf("column.type_authority: %w", err)
+	}
+	return nil
+}
+
+func validateString(name, value string, required bool) error {
+	if required && value == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	if !utf8.ValidString(value) || !norm.NFC.IsNormalString(value) {
+		return fmt.Errorf("%s must be UTF-8 NFC", name)
 	}
 	return nil
 }

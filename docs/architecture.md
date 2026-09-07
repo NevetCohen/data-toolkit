@@ -1,133 +1,65 @@
-# Data Toolkit V1 Foundation Architecture
+# Data Toolkit V1 architecture
 
 ## Status
 
-`establish-data-toolkit-v1-foundation` is the active product baseline. It
-creates the contracts and package boundaries required for V1 development. It
-does not implement end-user operations or file formats.
+`implement-revised-data-toolkit-v1` is the active implementation-ready OpenSpec
+contract. It updates specifications and documentation only; no Go product
+implementation is claimed by this document.
 
-The former MVP runtime is preserved under `legacy/mvp` in a nested Go module.
-Root commands do not traverse it, and an architecture test rejects imports from
-V1 into legacy code.
-
-## Dependency graph
+## Subsystems and data flow
 
 ```text
-cmd/data-toolkit
+CLI / Codex Adapter
         |
-internal/interfaces/{cli,tui}
+   Application API
         |
-internal/application
+   Orchestrator
         |
-internal/orchestrator
-      /        \
-logical      fileengine
-      \        /
-      core + report
-
-config -> embedded configs assets
+Reader Engine -> Logical Engine -> Writer Engine
+        \          |             /
+          Infrastructure
 ```
 
-Dependencies point inward. Core owns only canonical identities and models.
-Logical operations do not access files. File formats do not contain logical
-transformations. The orchestrator validates dependencies and dispatches
-registered implementations; it does not switch on operation or format kinds.
-The application layer is the only API used by interface packages.
+Infrastructure provides immutable `Schema + RowStream + Value`, identities,
+registries, configuration, resource reservations, reports, and receipts.
 
-## Extension template
+Reader inspection occurs before workflow execution. During a run, the
+Orchestrator validates the request, resolves configuration, creates a
+deterministic plan, then invokes `reader.snapshot` and `reader.read`. Reader
+holds a shared-read lock, creates an immutable snapshot and hash, decodes to the
+public data model, and performs schema and dirty-input checks before values reach
+the Logical Engine.
 
-Every extension family has the same structural contract:
+Logical Engine executes registered user operations exactly in requested order.
+V1 includes ten logical operations, including keyed deduplication and stable
+multi-key sort. Work is governed by reservations and bounded spool/spill;
+unrecoverable pressure is `resource_limit_exceeded` and cannot publish output.
 
-1. stable identity and versioned descriptor;
-2. behavior interface;
-3. explicit constructor;
-4. deterministic validation;
-5. explicit instance-owned registry.
+Writer renders to a staging artifact, applies optional Excel style, closes and
+reopens it, runs mandatory format/schema checks and requested assertions, then
+atomically publishes under collision policy. `writer.finalize` runs after
+workspace creation on success, failure, or cancellation. It releases resources
+in reverse order, applies artifact retention/cleanup policy, creates the final
+report, and appends exactly one receipt. Finalized failures return that complete
+report through the Application API; only pre-workspace failures use a bare
+error envelope.
 
-Registries reject empty or duplicate identities, unsupported versions, invalid
-descriptors, and capability mismatches. Registration order does not affect
-capability output. Extensions are compiled into the composition root. Runtime
-plugin discovery, package-level `init` registration, and executable
-configuration are forbidden.
+## Workflow files and configuration
 
-### Canonical data types
+The CLI accepts `WorkflowTemplateDocument` files. Typed variables use exact
+value references such as `{"$var": 1}` and are substituted before strict
+workflow validation and digest calculation. The CLI also accepts repeatable
+JSON-pointer configuration patches. Precedence is defaults, user config, CLI
+patches, workflow overrides, output overrides; protected paths cannot be
+changed through CLI patches. See [workflow JSON instructions](codex/workflow-json-format.md).
 
-A data-type handler parses text into an immutable canonical `Value`, validates
-the value, compares two values deterministically, and renders a value under
-explicit display options. Null, string, Boolean, exact integer, exact decimal,
-date, time, JSON object, and JSON array use this same registry contract.
+## Codex and Google Sheets
 
-### Logical operations
-
-Each executor provides a descriptor, parameter schema, validation, and
-`Execute`. Workflows use a generic operation envelope:
-
-```yaml
-id: normalized_members
-kind: future.normalize
-inputs: [members]
-parameters: {}
-overrides: {}
-```
-
-The operation registry stores the executable implementation and validates its
-JSON parameters before execution. The orchestrator resolves only operation
-identities and dependencies.
-
-### File formats and file operations
-
-A file-format provider declares and implements only the capabilities it owns:
-inspect, map, read, write, style, or validate. Registration fails if declared
-and implemented capabilities differ. The JSON, CSV, Excel, TXT, and Google
-packages advertise no capabilities in this change.
-
-Snapshot, lock, staging, output validation, publication, and cleanup are
-format-neutral contracts under `internal/fileengine/operation`.
-
-## Canonical data flow
-
-`table.Schema` contains column metadata and opaque source bindings.
-`table.RowStream` carries the actual values incrementally. A `cell.Cell`
-contains an immutable canonical value plus source, sheet, row, and column
-provenance. Columns never materialize all their values.
-
-## Application API
-
-The in-process API exposes:
-
-- `Capabilities`
-- `ValidateConfig`
-- `ValidateWorkflow`
-- `Map`
-- `Plan`
-- `Run`
-
-CLI and TUI call this API directly. Future Codex integration will use the same
-API or its JSON/YAML contract. V1 foundation opens no network listener.
-
-Runs emit monotonically increasing validation, planning, operation, and
-terminal events through an optional observer. Plans preserve the deterministic
-workflow order and reject forward or missing dependencies.
-
-## Configuration
-
-`configs/default.yaml` is the complete non-secret V1 default. The embedded
-`configs/schema/config-v1.schema.json` rejects unknown fields and invalid
-values before decoding to typed Go configuration.
-
-Precedence is:
-
-```text
-defaults -> user config -> workflow overrides -> output overrides
-```
-
-Resolution returns a copy and never mutates a lower-precedence layer.
-Credentials and extension registrations are intentionally outside the config.
-
-## Adding future product capabilities
-
-A new capability requires its own OpenSpec change. Its implementation supplies
-the appropriate interface and constructor, registers it explicitly in the
-composition root, adds contract and product tests, and updates capability
-documentation. Adding a logical operation must not require an orchestrator
-edit; adding a format must not require a logical-engine edit.
+Codex owns procedural adaptation, not runtime catalogs. It discovers capabilities
+and descriptors from the executable. The sixth project Skill handles Google
+Sheets through local XLSX only: it verifies that required Google Drive connector
+tools are callable, exports a source Sheet or imports a verified target XLSX,
+performs exact paginated title-collision search and bounded readbacks, cleans
+local intermediates, and never deletes a Drive file.
+Google Sheets is not a Reader or Writer `FormatID` and Go has no connector
+credentials or network integration.

@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"data-toolkit/internal/core"
+	"data-toolkit/internal/core/cell"
+	"data-toolkit/internal/core/column"
 	"data-toolkit/internal/core/datatype"
 	"data-toolkit/internal/core/table"
 	fileformat "data-toolkit/internal/fileengine/format"
@@ -16,7 +18,7 @@ import (
 
 type upperType struct {
 	version string
-	id      datatype.ID
+	id      core.DataTypeID
 }
 
 func (value upperType) Descriptor() datatype.Descriptor {
@@ -24,25 +26,25 @@ func (value upperType) Descriptor() datatype.Descriptor {
 	if identity == "" {
 		identity = "upper"
 	}
-	return datatype.Descriptor{ID: identity, Version: value.version, Name: "Uppercase text"}
+	return datatype.Descriptor{ID: identity, Version: value.version, Name: "Uppercase text", CanonicalKind: datatype.CanonicalKindString}
 }
 
-func (value upperType) Parse(input string) (datatype.Value, error) {
-	return datatype.NewValue("upper", []byte(strings.ToUpper(input)))
+func (value upperType) Parse(input string) (core.Value, error) {
+	return core.NewValue("upper", []byte(strings.ToUpper(input)))
 }
 
-func (value upperType) Validate(input datatype.Value) error {
+func (value upperType) Validate(input core.Value) error {
 	if input.TypeID() != "upper" || string(input.Encoded()) != strings.ToUpper(string(input.Encoded())) {
 		return errors.New("value is not canonical uppercase text")
 	}
 	return nil
 }
 
-func (upperType) Compare(left, right datatype.Value) (int, error) {
+func (upperType) Compare(left, right core.Value) (int, error) {
 	return strings.Compare(string(left.Encoded()), string(right.Encoded())), nil
 }
 
-func (upperType) Render(value datatype.Value, _ datatype.RenderOptions) (string, error) {
+func (upperType) Render(value core.Value, _ datatype.RenderOptions) (string, error) {
 	return string(value.Encoded()), nil
 }
 
@@ -100,10 +102,7 @@ func (provider *mappingFormat) Map(_ context.Context, request fileformat.MapRequ
 	provider.called = true
 	return fileformat.Mapping{
 		SourceID: request.Source.ID,
-		Tables: []table.Schema{{
-			ID:       "mapped",
-			SourceID: request.Source.ID,
-		}},
+		Tables:   []table.Schema{canonicalSchema("mapped", request.Source.ID)},
 	}, nil
 }
 
@@ -139,8 +138,8 @@ func TestExternalDataTypeRequiresRegistrationOnly(t *testing.T) {
 	if err := registry.Register(handler); err == nil || !strings.Contains(err.Error(), "already registered") {
 		t.Fatalf("duplicate registration error = %v", err)
 	}
-	if err := registry.Register(upperType{version: datatype.CurrentVersion, id: "UPPER"}); err == nil || !strings.Contains(err.Error(), "already registered") {
-		t.Fatalf("normalized duplicate registration error = %v", err)
+	if err := registry.Register(upperType{version: datatype.CurrentVersion, id: "UPPER"}); err == nil || !strings.Contains(err.Error(), "data type ID") {
+		t.Fatalf("invalid identity error = %v", err)
 	}
 	if err := datatype.NewRegistry(datatype.CurrentVersion).Register(upperType{version: "v2"}); err == nil || !strings.Contains(err.Error(), "incompatible") {
 		t.Fatalf("unsupported version error = %v", err)
@@ -154,10 +153,7 @@ func TestExternalLogicalOperationValidatesBeforeExecution(t *testing.T) {
 	if err := registry.RegisterConstructor(func() (logicaloperation.Executor, error) { return executor, nil }); err != nil {
 		t.Fatalf("register operation: %v", err)
 	}
-	input := table.Dataset{
-		Schema: table.Schema{ID: "input", SourceID: "source"},
-		Rows:   table.NewSliceStream(nil),
-	}
+	input := canonicalDataset(t, "input", "source")
 	spec := logicaloperation.Spec{
 		ID:         "copy",
 		Kind:       "test.identity",
@@ -186,6 +182,45 @@ func TestExternalLogicalOperationValidatesBeforeExecution(t *testing.T) {
 	if err := logicaloperation.NewRegistry(logicaloperation.CurrentVersion).Register(identityOperation{version: "v2"}); err == nil || !strings.Contains(err.Error(), "incompatible") {
 		t.Fatalf("unsupported operation version error = %v", err)
 	}
+}
+
+func canonicalSchema(id core.TableID, sourceID core.SourceID) table.Schema {
+	return table.Schema{
+		ID:       id,
+		SourceID: sourceID,
+		Columns: []column.ColumnDescriptor{{
+			ID:               "value",
+			PhysicalPosition: "A",
+			SourceHeader:     "Value",
+			DataType:         core.DataTypeID(datatype.StringID),
+			TypeAuthority:    core.TypeAuthorityDeclared,
+		}},
+	}
+}
+
+func canonicalDataset(t *testing.T, schemaID core.TableID, sourceID core.SourceID) table.Dataset {
+	t.Helper()
+	schema := canonicalSchema(schemaID, sourceID)
+	value, err := core.NewValue("string", []byte(`"value"`))
+	if err != nil {
+		t.Fatalf("construct canonical value: %v", err)
+	}
+	dataset := table.Dataset{
+		Schema: schema,
+		Rows: table.NewSliceStream([]table.Row{{
+			ID:       "row-1",
+			SourceID: sourceID,
+			Ordinal:  0,
+			Cells: []cell.Cell{{
+				ColumnID: "value",
+				Value:    value,
+			}},
+		}}),
+	}
+	if err := dataset.Validate(); err != nil {
+		t.Fatalf("construct canonical dataset: %v", err)
+	}
+	return dataset
 }
 
 func TestExternalFileFormatRequiresMatchingCapabilities(t *testing.T) {

@@ -1,0 +1,73 @@
+{
+  "schema_version": "canonical-data-fixtures-v1",
+  "values": [
+    {
+      "name": "hebrew",
+      "type_id": "string",
+      "input": "שלום עולם",
+      "expected_encoded": "\"שלום עולם\""
+    },
+    {
+      "name": "emoji",
+      "type_id": "string",
+      "input": "🧪🚀",
+      "expected_encoded": "\"🧪🚀\""
+    },
+    {
+      "name": "nfc-normalization",
+      "type_id": "string",
+      "input": "é",
+      "expected_encoded": "\"é\"",
+      "normalization_input": "é",
+      "normalization_expected": "é"
+    },
+    {
+      "name": "multiline",
+      "type_id": "string",
+      "input": "שורה ראשונה\nשורה שנייה",
+      "expected_encoded": "\"שורה ראשונה\\nשורה שנייה\""
+    },
+    {
+      "name": "null",
+      "type_id": "null",
+      "input": null,
+      "expected_encoded": "null"
+    },
+    {
+      "name": "empty",
+      "type_id": "string",
+      "input": "",
+      "expected_encoded": ""
+    },
+    {
+      "name": "hyphen",
+      "type_id": "string",
+      "input": "-",
+      "expected_encoded": "\"-\""
+    },
+    {
+      "name": "boolean-false",
+      "type_id": "boolean",
+      "input": false,
+      "expected_encoded": "false"
+    },
+    {
+      "name": "integer-zero",
+      "type_id": "integer",
+      "input": "0",
+      "expected_encoded": "0"
+    },
+    {
+      "name": "exact-integer",
+      "type_id": "integer",
+      "input": "900719925474099312345678901234567890123456789",
+      "expected_encoded": "900719925474099312345678901234567890123456789"
+    },
+    {
+      "name": "exact-decimal",
+      "type_id": "decimal",
+      "input": "9007199254740993.123456789012345678901234567890123456789",
+      "expected_encoded": "9007199254740993.123456789012345678901234567890123456789"
+    }
+  ]
+}

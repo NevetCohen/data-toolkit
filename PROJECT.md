@@ -1,92 +1,72 @@
 # Data Toolkit
 
-Purpose: Build a local, deterministic, fast, and extensible V1 product that
-replaces one-off data-manipulation scripts.
+Purpose: build a local, deterministic, extensible V1 product that replaces
+one-off data-manipulation scripts without modifying source data.
 
-Canonical requirements:
+Canonical product brief:
 
-`C:\Users\nevet\האחסון שלי\1 - אישי\Vaults\Programming_Vault\Programming\ארגז כלי דאטה\אפיון ראשוני.md`
+`C:\Users\nevet\האחסון שלי\1 - אישי\Vaults\Programming_Vault\Programming\ארגז כלי דאטה\אפיון מחודש 04-08-2026.md`
 
-## V1 Product Architecture
+The active implementation-ready contract is OpenSpec change
+`implement-revised-data-toolkit-v1`. The initial brief and the archived
+foundation proposal remain historical inputs and are not changed by this work.
 
-- `internal/core`: canonical identities, data types, cells, columns, tables, and
-  row streams.
-- `internal/logical`: explicitly registered, format-neutral operations.
-- `internal/fileengine`: explicitly registered format capabilities and shared
-  file-operation contracts.
-- `internal/orchestrator`: workflow validation, deterministic planning, and
-  registry dispatch.
-- `internal/application`: the shared in-process API for CLI, TUI, and future
-  Codex integration.
-- `internal/interfaces`: interface clients with no product or registry logic.
+## V1 product architecture
 
-The active product foundation is specified by OpenSpec change
-`establish-data-toolkit-v1-foundation`. The previous MVP implementation is
-preserved as a separate, non-runtime module under `legacy/mvp`.
+- Infrastructure: identities, immutable `Schema + RowStream + Value`,
+  registries, configuration, resources, reports, and receipts.
+- Reader Engine: inspection, shared-read lock, immutable snapshot/hash, decode,
+  and source schema/dirty-input validation.
+- Logical Engine: explicitly registered, format-neutral operations in declared
+  request order.
+- Writer Engine: staged rendering, optional Excel style, reopen validation,
+  assertions, atomic publish, and finalization.
+- Orchestrator: validation, configuration resolution, deterministic planning,
+  ordering, and engine dispatch only.
+- CLI: strict JSON workflow files, typed variables, config patches, JSON API
+  envelopes, and exit classes.
+- Codex Adapter: runtime discovery, template construction, run/recovery
+  procedure, and the Google Sheets XLSX bridge.
 
-## V1 Extension Policy
+The existing Go foundation is intentionally not reclassified as a finished V1
+implementation by this documentation change. Future implementation will align
+its packages with these contracts.
 
-- A template is a versioned descriptor, behavior interface, constructor,
-  validation, and explicit instance-owned registry.
-- Extensions are compiled and composed explicitly; there are no dynamic
-  plugins, `init` registration, or executable configuration.
-- JSON, CSV, Excel, TXT, and Google are scaffolds only until separate changes
-  specify and implement them.
-- Columns are metadata. Values remain in bounded-memory row streams.
+## Core contracts
 
-## Core Contracts
+- Sources are immutable; Reader validates and hashes a snapshot before Logical
+  Engine receives values.
+- The public model is only `Schema + RowStream + Value`; batching is an optional
+  internal optimization.
+- Workflows are deterministic and come from a strict file-backed template.
+- CLI variable substitution precedes strict workflow validation and digest.
+- Configuration precedence is defaults, user config, CLI patches, workflow
+  overrides, then output overrides; protected paths cannot be patched.
+- Writer validates the reopened staging artifact and all user assertions before
+  atomic publication. After workspace creation, it finalizes every terminal
+  path, returns the complete terminal `RunReport` through the Application API,
+  and appends exactly one receipt.
+- Logical work is bounded by resource reservations/spill. A nonrecoverable
+  limit returns `resource_limit_exceeded` and cannot publish output.
+- Google Sheets is not a Go format. The sixth Codex Skill uses the verified
+  Google Drive connector to export/import local XLSX, resolves remote title
+  collisions before import, and never deletes a Drive file.
 
-- Source files are immutable.
-- Workflows are deterministic and use a closed set of operations.
-- Dirty input stops execution unless the workflow explicitly defines repair or ignore behavior.
-- Defaults and user preferences belong in configuration.
-- Excel and Google Sheets formulas are consumed as displayed values.
-- Output formatting uses selectable named styles with one configurable default.
-- Sheets can be addressed explicitly within workbooks and Google spreadsheets.
-- Final results include output files or query answers, validation results, exception reports, and error details.
+## V1 scope
 
-## Target Scale
+Local formats are CSV, JSON, and Excel through separate Reader/Writer
+capabilities. The V1 logical catalog contains ten operations including keyed
+deduplication and stable multi-key sorting. Google Sheets is an agent-mediated
+XLSX bridge only. Joins, queries, TXT, TUI, remote overwrite, runtime plugins,
+and runtime credentials are out of scope.
 
-- JSON files around 40 MB.
-- CSV datasets up to 500,000 rows.
-- Streaming or bounded-memory execution where it materially improves performance.
+## Quality and documentation
 
-## Foundation Acceptance
+Run `openspec validate implement-revised-data-toolkit-v1 --strict` for the
+active contract. Codex agents building workflows must read
+`docs/codex/workflow-json-format.md`; Google Sheet requests also use
+`.agents/skills/data-toolkit-google-sheets/SKILL.md` once implemented.
 
-- `go test ./...`, `go vet ./...`, and `go build ./cmd/data-toolkit` pass in
-  the root module.
-- External tests add a data type, logical operation, and file format through
-  implementation and explicit registration only.
-- The embedded complete defaults pass the strict V1 schema and resolve to typed
-  configuration.
-- CLI and TUI scaffolds use the same application API.
-- The root module never imports or builds `legacy/mvp`.
-
-## Repository
-
-`C:\Users\nevet\data_toolkit` is the single repository and source of truth for
-project instructions, OpenSpec planning, implementation code, tests, fixtures,
-documentation, and repository-local skills. Machine-local skill junctions under
-`.agents\skills` are recreated by `scripts\setup-agent-skills.ps1` and are not
-versioned.
-
-## Local Skills
-
-- `ai-ml-domain`
-- `data-toolkit-domain`
-- `go-programming`
-- `llm-markdown-programming`
-- `obsidian`
-- `obsidian-artifact-creation`
-- `obsidian-collaboration`
-- `obsidian-domain`
-- `obsidian-search-notes`
-- `obsidian-update-recent-md-files-list`
-- `openspec-apply-change`
-- `openspec-archive-change`
-- `openspec-explore`
-- `openspec-propose`
-- `openspec-sync-specs`
-- `programming-project`
-- `python-programming`
-- `tabular-data-programming`
+The repository at `C:\Users\nevet\data_toolkit` contains code, tests,
+OpenSpec changes, fixtures, documentation, and project-local skills. Do not
+modify `legacy/mvp` as part of V1 runtime work.

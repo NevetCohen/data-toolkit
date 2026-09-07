@@ -127,6 +127,9 @@ func (registry *Registry) Validate(spec Spec, inputs []table.Schema) error {
 func (registry *Registry) Execute(ctx context.Context, request Request) (Result, error) {
 	schemas := make([]table.Schema, len(request.Inputs))
 	for index, input := range request.Inputs {
+		if err := input.Validate(); err != nil {
+			return Result{}, fmt.Errorf("operation %q input[%d]: %w", request.Spec.ID, index, err)
+		}
 		schemas[index] = input.Schema
 	}
 	if err := registry.Validate(request.Spec, schemas); err != nil {
@@ -140,11 +143,8 @@ func (registry *Registry) Execute(ctx context.Context, request Request) (Result,
 	if err != nil {
 		return Result{}, fmt.Errorf("execute operation %q: %w", request.Spec.ID, err)
 	}
-	if err := result.Dataset.Schema.Validate(); err != nil {
-		return Result{}, fmt.Errorf("operation %q returned invalid table: %w", request.Spec.ID, err)
-	}
-	if result.Dataset.Rows == nil {
-		return Result{}, fmt.Errorf("operation %q returned no row stream", request.Spec.ID)
+	if err := result.Dataset.Validate(); err != nil {
+		return Result{}, fmt.Errorf("operation %q returned invalid dataset: %w", request.Spec.ID, err)
 	}
 	return result, nil
 }
